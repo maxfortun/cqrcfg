@@ -1,23 +1,24 @@
 # cqrcfg - Runtime Config Service
 
-A production-ready Node.js microservice built with **Fastify** that provides a **runtime hierarchical configuration API** with OIDC-based subtree access control.
+A production-ready Node.js microservice built with **Fastify** that provides a **runtime hierarchical configuration API** with JWT-based subtree access control.
 
 ## Features
 
 - **High performance** - Built on Fastify for maximum throughput
+- **Swappable storage** - MongoDB, DynamoDB, or etcd
+- **Swappable notifications** - WebSocket, Kafka, or AMQP
 - Hierarchical JSON configuration storage
 - Subtree read/write operations (GET, PATCH, PUT, DELETE)
-- OIDC JWT authentication (RS256/ES256)
+- JWT authentication with JWKS validation
 - Prefix-based authorization from JWT claims
-- MongoDB persistence with indexed paths
-- WebSocket change streams for real-time updates
+- Real-time change notifications via pub/sub
 - Fully stateless design
 
 ## Requirements
 
 - Node.js >= 20.0.0
-- MongoDB 4.4+
-- OIDC Identity Provider with JWKs endpoint
+- Storage backend (MongoDB, DynamoDB, or etcd)
+- JWKs endpoint for token verification
 
 ## Quick Start
 
@@ -25,6 +26,15 @@ A production-ready Node.js microservice built with **Fastify** that provides a *
 
 ```bash
 npm install
+
+# Install storage driver (pick one)
+npm install mongodb          # For MongoDB
+npm install @aws-sdk/client-dynamodb @aws-sdk/lib-dynamodb  # For DynamoDB
+npm install etcd3            # For etcd
+
+# Install notification broker (optional, pick one)
+npm install kafkajs          # For Kafka
+npm install amqplib          # For AMQP/RabbitMQ
 ```
 
 ### 2. Configure environment
@@ -35,8 +45,7 @@ cp .env.example .env
 ```
 
 Required configuration:
-- `MONGODB_URI` - MongoDB connection string
-- `OIDC_ISSUER` - Your OIDC provider URL (e.g., `https://auth.example.com`)
+- `OIDC_JWKS_URI` - JWKs endpoint for token verification
 
 ### 3. Start the server
 
@@ -50,15 +59,37 @@ npm run dev
 
 ## Configuration
 
+### Core Settings
+
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `PORT` | `3000` | Server port |
 | `HOST` | `0.0.0.0` | Server host |
-| `MONGODB_URI` | `mongodb://localhost:27017` | MongoDB connection string |
-| `MONGODB_DATABASE` | `cqrcfg` | Database name |
-| `OIDC_ISSUER` | (required) | OIDC issuer URL |
-| `OIDC_JWKS_URI` | `{issuer}/.well-known/jwks.json` | JWKs endpoint |
+| `OIDC_JWKS_URI` | (required) | JWKs endpoint URL |
 | `OIDC_AUDIENCE` | (optional) | Expected JWT audience |
+| `OIDC_CLAIMS_HEADERS` | (optional) | Comma-separated header names for claims |
+
+### Storage Settings
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `STORAGE_TYPE` | `mongodb` | Storage backend: `mongodb`, `dynamodb`, `etcd` |
+| `MONGODB_URI` | `mongodb://localhost:27017` | MongoDB connection string |
+| `MONGODB_DATABASE` | `cqrcfg` | MongoDB database name |
+| `DYNAMODB_TABLE` | `cqrcfg` | DynamoDB table name |
+| `AWS_REGION` | `us-east-1` | AWS region for DynamoDB |
+| `ETCD_HOSTS` | `http://localhost:2379` | Comma-separated etcd hosts |
+| `ETCD_PREFIX` | `/cqrcfg` | Key prefix in etcd |
+
+### Notification Settings
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `NOTIFICATIONS_TYPE` | `websocket` | Notification broker: `websocket`, `kafka`, `amqp` |
+| `KAFKA_BROKERS` | `localhost:9092` | Comma-separated Kafka brokers |
+| `KAFKA_TOPIC` | `cqrcfg-changes` | Kafka topic for changes |
+| `AMQP_URL` | `amqp://localhost` | AMQP connection URL |
+| `AMQP_EXCHANGE` | `cqrcfg` | AMQP exchange name |
 
 ## API Endpoints
 
@@ -157,8 +188,6 @@ Subscribe to real-time configuration changes via WebSocket.
 WS /stream/:path?token=<jwt>
 ```
 
-**Note:** Requires MongoDB replica set for change streams.
-
 **Example (JavaScript):**
 ```javascript
 const ws = new WebSocket('ws://localhost:3000/stream/app1?token=YOUR_JWT');
@@ -182,7 +211,6 @@ The service expects JWT tokens with the following claims:
 ```json
 {
   "sub": "user123",
-  "iss": "https://auth.example.com",
   "config_permissions": [
     {
       "path": "/config/app1",
@@ -196,29 +224,20 @@ The service expects JWT tokens with the following claims:
 }
 ```
 
+The token is verified against the JWKS endpoint. Multiple issuers are supported - tokens are matched by `kid`.
+
+### Claims Headers
+
+Claims can also be provided via HTTP headers (configured via `OIDC_CLAIMS_HEADERS`). This is useful when a reverse proxy extracts claims from id_tokens. Header values can be:
+- Plain JSON
+- Base64-encoded JSON
+- Signed JWT (verified against JWKS)
+
 ### Permission Rules
 
 - `path` in permission must be an exact prefix of the requested path
 - Prefix matching is boundary-safe (`/app1` does NOT match `/app10`)
 - Actions: `read` (GET), `write` (PATCH, PUT, DELETE)
-
-## Data Model
-
-MongoDB collection: `config`
-
-```json
-{
-  "path": "/config/app1/db",
-  "data": {
-    "host": "localhost",
-    "port": 5432
-  },
-  "updatedAt": "2024-01-15T10:30:00.000Z"
-}
-```
-
-Indexes:
-- Unique index on `path`
 
 ## Project Structure
 
@@ -232,11 +251,20 @@ src/
 │   └── normalizePath.js  # Path normalization
 ├── routes/
 │   ├── config.js         # Config CRUD routes
-│   └── stream.js         # WebSocket change streams
+│   └── stream.js         # WebSocket subscriptions
 ├── services/
-│   ├── database.js       # MongoDB connection
 │   ├── configService.js  # Config operations
-│   └── streamService.js  # Change stream service
+│   └── notificationService.js  # Pub/sub notifications
+├── storage/
+│   ├── interface.js      # Storage interface
+│   ├── mongodb.js        # MongoDB implementation
+│   ├── dynamodb.js       # DynamoDB implementation
+│   └── etcd.js           # etcd implementation
+├── notifications/
+│   ├── interface.js      # Notifications interface
+│   ├── websocket.js      # In-process pub/sub
+│   ├── kafka.js          # Kafka implementation
+│   └── amqp.js           # AMQP implementation
 └── utils/
     └── tree.js           # Tree building utilities
 ```
