@@ -1,0 +1,44 @@
+{
+  "name": "cqrcfg",
+  "version": "1.0.0",
+  "description": "Runtime hierarchical configuration service with OIDC-based subtree access control",
+  "main": "src/index.js",
+  "type": "module",
+  "scripts": {
+    "start": "node src/index.js",
+    "dev": "node --watch src/index.js"
+  },
+  "keywords": [
+    "config",
+    "configuration",
+    "runtime",
+    "hierarchical",
+    "oidc",
+    "jwt",
+    "mongodb",
+    "dynamodb",
+    "etcd",
+    "kafka",
+    "amqp",
+    "pubsub"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "fastify": "^5.0.0",
+    "@fastify/websocket": "^11.0.0",
+    "jose": "^5.2.0",
+    "dotenv": "^16.3.1"
+  },
+  "optionalDependencies": {
+    "mongodb": "^6.3.0",
+    "@aws-sdk/client-dynamodb": "^3.500.0",
+    "@aws-sdk/lib-dynamodb": "^3.500.0",
+    "etcd3": "^1.1.2",
+    "kafkajs": "^2.2.4",
+    "amqplib": "^0.10.3"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  }
+}

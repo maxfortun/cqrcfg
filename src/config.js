@@ -1,0 +1,72 @@
+import 'dotenv/config';
+
+export const config = {
+  server: {
+    port: parseInt(process.env.PORT, 10) || 3000,
+    host: process.env.HOST || '0.0.0.0',
+  },
+  storage: {
+    type: process.env.STORAGE_TYPE || 'mongodb',
+    mongodb: {
+      uri: process.env.MONGODB_URI || 'mongodb://localhost:27017',
+      database: process.env.MONGODB_DATABASE || 'cqrcfg',
+    },
+    dynamodb: {
+      tableName: process.env.DYNAMODB_TABLE || 'cqrcfg',
+      region: process.env.AWS_REGION || 'us-east-1',
+      endpoint: process.env.DYNAMODB_ENDPOINT || undefined,
+    },
+    etcd: {
+      hosts: process.env.ETCD_HOSTS
+        ? process.env.ETCD_HOSTS.split(',').map(h => h.trim())
+        : ['http://localhost:2379'],
+      prefix: process.env.ETCD_PREFIX || '/cqrcfg',
+    },
+  },
+  notifications: {
+    type: process.env.NOTIFICATIONS_TYPE || 'websocket',
+    kafka: {
+      brokers: process.env.KAFKA_BROKERS
+        ? process.env.KAFKA_BROKERS.split(',').map(b => b.trim())
+        : ['localhost:9092'],
+      topic: process.env.KAFKA_TOPIC || 'cqrcfg-changes',
+      clientId: process.env.KAFKA_CLIENT_ID || 'cqrcfg',
+      groupId: process.env.KAFKA_GROUP_ID || 'cqrcfg-group',
+    },
+    amqp: {
+      url: process.env.AMQP_URL || 'amqp://localhost',
+      exchange: process.env.AMQP_EXCHANGE || 'cqrcfg',
+      exchangeType: process.env.AMQP_EXCHANGE_TYPE || 'topic',
+    },
+  },
+  oidc: {
+    jwksUri: process.env.OIDC_JWKS_URI,
+    audience: process.env.OIDC_AUDIENCE || undefined,
+    claimsHeaders: process.env.OIDC_CLAIMS_HEADERS
+      ? process.env.OIDC_CLAIMS_HEADERS.split(',').map(h => h.trim()).filter(Boolean)
+      : [],
+  },
+  logLevel: process.env.LOG_LEVEL || 'info',
+};
+
+export function validateConfig() {
+  const errors = [];
+
+  if (!config.oidc.jwksUri) {
+    errors.push('OIDC_JWKS_URI is required');
+  }
+
+  const validStorage = ['mongodb', 'dynamodb', 'etcd'];
+  if (!validStorage.includes(config.storage.type)) {
+    errors.push(`STORAGE_TYPE must be one of: ${validStorage.join(', ')}`);
+  }
+
+  const validNotifications = ['websocket', 'kafka', 'amqp'];
+  if (!validNotifications.includes(config.notifications.type)) {
+    errors.push(`NOTIFICATIONS_TYPE must be one of: ${validNotifications.join(', ')}`);
+  }
+
+  if (errors.length > 0) {
+    throw new Error(`Configuration errors:\n${errors.join('\n')}`);
+  }
+}
