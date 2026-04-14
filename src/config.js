@@ -40,7 +40,12 @@ export const config = {
     },
   },
   oidc: {
-    jwksUri: process.env.OIDC_JWKS_URI,
+    jwksUris: process.env.OIDC_JWKS_URIS
+      ? process.env.OIDC_JWKS_URIS.split(',').map(u => u.trim()).filter(Boolean)
+      : [],
+    issuers: process.env.OIDC_ISSUERS
+      ? process.env.OIDC_ISSUERS.split(',').map(i => i.trim()).filter(Boolean)
+      : [],
     audience: process.env.OIDC_AUDIENCE || undefined,
     claimsHeaders: process.env.OIDC_CLAIMS_HEADERS
       ? process.env.OIDC_CLAIMS_HEADERS.split(',').map(h => h.trim()).filter(Boolean)
@@ -52,8 +57,11 @@ export const config = {
 export function validateConfig() {
   const errors = [];
 
-  if (!config.oidc.jwksUri) {
-    errors.push('OIDC_JWKS_URI is required');
+  const hasJwksUris = config.oidc.jwksUris.length > 0;
+  const hasIssuers = config.oidc.issuers.length > 0;
+
+  if (!hasJwksUris && !hasIssuers) {
+    errors.push('At least one of OIDC_JWKS_URIS or OIDC_ISSUERS is required');
   }
 
   const validStorage = ['mongodb', 'dynamodb', 'etcd'];

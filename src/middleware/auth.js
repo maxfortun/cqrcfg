@@ -1,13 +1,106 @@
 import * as jose from 'jose';
 import { config } from '../config.js';
 
-let jwks = null;
+let combinedJwks = null;
+let jwksKeys = [];
 
+/**
+ * Fetch JWKS from an issuer's well-known endpoint
+ */
+async function fetchIssuerJwks(issuer) {
+  try {
+    // Normalize issuer URL
+    const issuerUrl = issuer.endsWith('/') ? issuer : `${issuer}/`;
+    const wellKnownUrl = `${issuerUrl}.well-known/openid-configuration`;
+
+    // Fetch OpenID configuration
+    const configResponse = await fetch(wellKnownUrl);
+    if (!configResponse.ok) {
+      console.warn(`Failed to fetch OpenID config from ${wellKnownUrl}: ${configResponse.status}`);
+      return [];
+    }
+
+    const openidConfig = await configResponse.json();
+    const jwksUri = openidConfig.jwks_uri;
+
+    if (!jwksUri) {
+      console.warn(`No jwks_uri found in OpenID config for ${issuer}`);
+      return [];
+    }
+
+    // Fetch JWKS
+    const jwksResponse = await fetch(jwksUri);
+    if (!jwksResponse.ok) {
+      console.warn(`Failed to fetch JWKS from ${jwksUri}: ${jwksResponse.status}`);
+      return [];
+    }
+
+    const jwksData = await jwksResponse.json();
+    return jwksData.keys || [];
+  } catch (error) {
+    console.warn(`Error fetching JWKS for issuer ${issuer}:`, error.message);
+    return [];
+  }
+}
+
+/**
+ * Fetch JWKS from a direct JWKS URI
+ */
+async function fetchDirectJwks(jwksUri) {
+  try {
+    const response = await fetch(jwksUri);
+    if (!response.ok) {
+      console.warn(`Failed to fetch JWKS from ${jwksUri}: ${response.status}`);
+      return [];
+    }
+
+    const jwksData = await response.json();
+    return jwksData.keys || [];
+  } catch (error) {
+    console.warn(`Error fetching JWKS from ${jwksUri}:`, error.message);
+    return [];
+  }
+}
+
+/**
+ * Initialize and cache the combined JWKS from all sources
+ */
+async function initJWKS() {
+  if (combinedJwks) return combinedJwks;
+
+  const allKeys = [];
+
+  // Fetch from each direct JWKS URI
+  for (const jwksUri of config.oidc.jwksUris) {
+    const keys = await fetchDirectJwks(jwksUri);
+    allKeys.push(...keys);
+  }
+
+  // Fetch from each issuer's well-known endpoint
+  for (const issuer of config.oidc.issuers) {
+    const keys = await fetchIssuerJwks(issuer);
+    allKeys.push(...keys);
+  }
+
+  if (allKeys.length === 0) {
+    throw new Error('No JWKS keys found from any configured source (OIDC_JWKS_URI or OIDC_ISSUERS)');
+  }
+
+  // Store keys for reference
+  jwksKeys = allKeys;
+
+  // Create a local JWK Set from combined keys
+  combinedJwks = jose.createLocalJWKSet({ keys: allKeys });
+
+  console.log(`Loaded ${allKeys.length} JWKS key(s) from configured sources`);
+  return combinedJwks;
+}
+
+/**
+ * Get the cached JWKS (initializes if needed)
+ */
 async function getJWKS() {
-  if (jwks) return jwks;
-
-  jwks = jose.createRemoteJWKSet(new URL(config.oidc.jwksUri));
-  return jwks;
+  return initJWKS();
 }
 
 /**

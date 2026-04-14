@@ -65,9 +65,12 @@ npm run dev
 |----------|---------|-------------|
 | `PORT` | `3000` | Server port |
 | `HOST` | `0.0.0.0` | Server host |
-| `OIDC_JWKS_URI` | (required) | JWKs endpoint URL |
+| `OIDC_JWKS_URIS` | (optional) | Comma-separated direct JWKS endpoint URLs |
+| `OIDC_ISSUERS` | (optional) | Comma-separated OIDC issuer URLs (fetches JWKS from each issuer's well-known endpoint) |
 | `OIDC_AUDIENCE` | (optional) | Expected JWT audience |
 | `OIDC_CLAIMS_HEADERS` | (optional) | Comma-separated header names for claims |
+
+**Note:** At least one of `OIDC_JWKS_URIS` or `OIDC_ISSUERS` must be configured. Keys from all sources are combined for JWT verification.
 
 ### Storage Settings
 
