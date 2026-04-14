@@ -13,6 +13,17 @@ export async function getSubtree(basePath) {
   return buildTree(docs, basePath);
 }
 
+export async function listPaths(basePath) {
+  const backend = getStorage();
+  const paths = await backend.listPaths(basePath);
+
+  if (paths.length === 0) {
+    return null;
+  }
+
+  return paths;
+}
+
 export async function patchNode(path, data) {
   const backend = getStorage();
   const existing = await backend.getByPath(path);

@@ -111,4 +111,22 @@ describe('MongoDB Storage', async () => {
 
     assert.strictEqual(results.length, 2);
   });
+
+  it('should list paths under prefix', async () => {
+    await storage.upsert('/config/app1/db', { host: 'db.local' });
+    await storage.upsert('/config/app1/cache', { host: 'cache.local' });
+    await storage.upsert('/config/app2/db', { host: 'other.local' });
+
+    const paths = await storage.listPaths('/config/app1');
+
+    assert.strictEqual(paths.length, 2);
+    assert.ok(paths.includes('/config/app1/db'));
+    assert.ok(paths.includes('/config/app1/cache'));
+    assert.ok(!paths.includes('/config/app2/db'));
+  });
+
+  it('should return empty array for listPaths on non-existent prefix', async () => {
+    const paths = await storage.listPaths('/config/nonexistent');
+    assert.strictEqual(paths.length, 0);
+  });
 });

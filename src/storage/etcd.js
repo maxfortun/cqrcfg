@@ -115,4 +115,9 @@ export class EtcdStorage extends StorageInterface {
     return keysToDelete.length;
   }
 
+  async listPaths(pathPrefix) {
+    const items = await this.getByPrefix(pathPrefix);
+    return items.map(item => item.path);
+  }
+
 }

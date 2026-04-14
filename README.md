@@ -112,7 +112,7 @@ Returns service status (no authentication required).
 GET /config/:path
 ```
 
-Returns the full JSON tree under the specified path.
+Returns the full JSON tree under the specified path. Requires `read` permission.
 
 **Example:**
 ```bash
@@ -129,6 +129,30 @@ curl -H "Authorization: Bearer $TOKEN" http://localhost:3000/config/app1
   "features": {
     "enabled": true
   }
+}
+```
+
+### List Config Paths
+
+```
+GET /config/:path/
+```
+
+When the path ends with `/`, returns a list of all paths under the specified prefix. Requires `list` permission.
+
+**Example:**
+```bash
+curl -H "Authorization: Bearer $TOKEN" http://localhost:3000/config/app1/
+```
+
+**Response:**
+```json
+{
+  "keys": [
+    "/config/app1/db",
+    "/config/app1/cache",
+    "/config/app1/features"
+  ]
 }
 ```
 
@@ -217,11 +241,11 @@ The service expects JWT tokens with the following claims:
   "config_permissions": [
     {
       "path": "/config/app1",
-      "actions": ["read", "write"]
+      "actions": ["read", "write", "list"]
     },
     {
       "path": "/config/shared",
-      "actions": ["read"]
+      "actions": ["read", "list"]
     }
   ]
 }
@@ -240,7 +264,7 @@ Claims can also be provided via HTTP headers (configured via `OIDC_CLAIMS_HEADER
 
 - `path` in permission must be an exact prefix of the requested path
 - Prefix matching is boundary-safe (`/app1` does NOT match `/app10`)
-- Actions: `read` (GET), `write` (PATCH, PUT, DELETE)
+- Actions: `read` (GET without trailing `/`), `list` (GET with trailing `/`), `write` (PATCH, PUT, DELETE)
 
 ## Project Structure
 

@@ -195,4 +195,9 @@ export class DynamoDBStorage extends StorageInterface {
     return items.length;
   }
 
+  async listPaths(pathPrefix) {
+    const items = await this.getByPrefix(pathPrefix);
+    return items.map(item => item.path);
+  }
+
 }

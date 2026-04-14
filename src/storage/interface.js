@@ -18,6 +18,7 @@
  * @property {function(string): Promise<ConfigDocument|null>} getByPath - Get single doc by exact path
  * @property {function(string, Object): Promise<void>} upsert - Insert or replace a document
  * @property {function(string): Promise<number>} deleteByPrefix - Delete all docs matching path prefix
+ * @property {function(string): Promise<string[]>} listPaths - List all paths under a prefix
  */
 
 export class StorageInterface {
@@ -42,6 +43,10 @@ export class StorageInterface {
   }
 
   async deleteByPrefix(pathPrefix) {
+    throw new Error('Not implemented');
+  }
+
+  async listPaths(pathPrefix) {
     throw new Error('Not implemented');
   }
 }

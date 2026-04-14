@@ -74,6 +74,14 @@ export class MongoDBStorage extends StorageInterface {
     return result.deletedCount;
   }
 
+  async listPaths(pathPrefix) {
+    const collection = this.db.collection(COLLECTION);
+    const regex = new RegExp(`^${escapeRegex(pathPrefix)}($|/)`);
+
+    const docs = await collection.find({ path: regex }, { projection: { path: 1, _id: 0 } }).toArray();
+    return docs.map(doc => doc.path);
+  }
+
 }
 
 function escapeRegex(str) {

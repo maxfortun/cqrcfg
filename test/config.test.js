@@ -240,6 +240,85 @@ describe('Config API', async () => {
 
     assert.strictEqual(response.statusCode, 400);
   });
+
+  it('should list paths with trailing slash', async () => {
+    // Create test data with list permission
+    const listToken = await createTestToken({
+      sub: 'list-user',
+      config_permissions: [
+        { path: '/config', actions: ['read', 'write', 'list'] },
+      ],
+    });
+
+    // Create some configs
+    await fastify.inject({
+      method: 'PUT',
+      url: '/config/app1/db',
+      headers: {
+        Authorization: `Bearer ${listToken}`,
+        'Content-Type': 'application/json',
+      },
+      payload: { host: 'localhost' },
+    });
+
+    await fastify.inject({
+      method: 'PUT',
+      url: '/config/app1/cache',
+      headers: {
+        Authorization: `Bearer ${listToken}`,
+        'Content-Type': 'application/json',
+      },
+      payload: { host: 'redis' },
+    });
+
+    // List with trailing slash
+    const response = await fastify.inject({
+      method: 'GET',
+      url: '/config/app1/',
+      headers: { Authorization: `Bearer ${listToken}` },
+    });
+
+    assert.strictEqual(response.statusCode, 200);
+    const body = JSON.parse(response.body);
+    assert.ok(Array.isArray(body.keys));
+    assert.ok(body.keys.includes('/config/app1/db'));
+    assert.ok(body.keys.includes('/config/app1/cache'));
+  });
+
+  it('should deny list without list permission', async () => {
+    // Token with only read/write, no list
+    const noListToken = await createTestToken({
+      sub: 'no-list-user',
+      config_permissions: [
+        { path: '/config', actions: ['read', 'write'] },
+      ],
+    });
+
+    const response = await fastify.inject({
+      method: 'GET',
+      url: '/config/app1/',
+      headers: { Authorization: `Bearer ${noListToken}` },
+    });
+
+    assert.strictEqual(response.statusCode, 403);
+  });
+
+  it('should return 404 for list on empty path', async () => {
+    const listToken = await createTestToken({
+      sub: 'list-user',
+      config_permissions: [
+        { path: '/config', actions: ['list'] },
+      ],
+    });
+
+    const response = await fastify.inject({
+      method: 'GET',
+      url: '/config/nonexistent/',
+      headers: { Authorization: `Bearer ${listToken}` },
+    });
+
+    assert.strictEqual(response.statusCode, 404);
+  });
 });
 
 describe('Authorization', async () => {
