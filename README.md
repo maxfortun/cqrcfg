@@ -82,6 +82,48 @@ npm run ui:build
 
 The UI will be available at `http://localhost:5173` and requires a valid JWT token with appropriate permissions (`read`, `write`, `list`) to browse and edit configurations.
 
+## Docker Compose
+
+Run the entire stack locally with Docker Compose:
+
+```bash
+# Create .env file with your OIDC settings
+cp .env.example .env
+# Edit .env and set OIDC_JWKS_URIS or OIDC_ISSUERS
+
+# Start all services (API, UI, MongoDB)
+docker compose up -d
+
+# View logs
+docker compose logs -f
+
+# Stop all services
+docker compose down
+
+# Stop and remove volumes (deletes data)
+docker compose down -v
+```
+
+**Services:**
+- **API**: http://localhost:3000
+- **UI**: http://localhost:8080
+- **MongoDB**: localhost:27017
+
+**Environment Variables:**
+
+Set these in `.env` or pass them to `docker compose`:
+
+```bash
+# Required: At least one JWKS source
+OIDC_JWKS_URIS=https://your-idp.com/.well-known/jwks.json
+# or
+OIDC_ISSUERS=https://accounts.google.com
+
+# Optional
+OIDC_AUDIENCE=your-audience
+OIDC_CLAIMS_HEADERS=X-Userinfo
+```
+
 ## Configuration
 
 ### Core Settings

@@ -1,0 +1,45 @@
+services:
+  cqrcfg:
+    build: .
+    ports:
+      - "3000:3000"
+    environment:
+      - PORT=3000
+      - HOST=0.0.0.0
+      - STORAGE_TYPE=mongodb
+      - MONGODB_URI=mongodb://mongodb:27017
+      - MONGODB_DATABASE=cqrcfg
+      - NOTIFICATIONS_TYPE=websocket
+      - OIDC_JWKS_URIS=${OIDC_JWKS_URIS:-}
+      - OIDC_ISSUERS=${OIDC_ISSUERS:-}
+      - OIDC_AUDIENCE=${OIDC_AUDIENCE:-}
+      - OIDC_CLAIMS_HEADERS=${OIDC_CLAIMS_HEADERS:-}
+    depends_on:
+      mongodb:
+        condition: service_healthy
+    restart: unless-stopped
+
+  mongodb:
+    image: mongo:7
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongodb_data:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  ui:
+    build:
+      context: ./ui
+      dockerfile: Dockerfile
+    ports:
+      - "8080:80"
+    depends_on:
+      - cqrcfg
+
+volumes:
+  mongodb_data:
