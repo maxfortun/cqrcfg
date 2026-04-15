@@ -84,14 +84,10 @@ The UI will be available at `http://localhost:5173` and requires a valid JWT tok
 
 ## Docker Compose
 
-Run the entire stack locally with Docker Compose:
+Run the entire stack locally with Docker Compose. Includes a mock OIDC server for local development:
 
 ```bash
-# Create .env file with your OIDC settings
-cp .env.example .env
-# Edit .env and set OIDC_JWKS_URIS or OIDC_ISSUERS
-
-# Start all services (API, UI, MongoDB)
+# Start all services (API, UI, MongoDB, Mock OIDC)
 docker compose up -d
 
 # View logs
@@ -107,21 +103,45 @@ docker compose down -v
 **Services:**
 - **API**: http://localhost:3000
 - **UI**: http://localhost:8080
+- **Mock OIDC**: http://localhost:8888 (token generator UI)
 - **MongoDB**: localhost:27017
 
-**Environment Variables:**
+### Getting a Token (Local Development)
 
-Set these in `.env` or pass them to `docker compose`:
+1. Open the Mock OIDC token generator: http://localhost:8888
+2. Edit the claims JSON to set your desired permissions
+3. Click "Generate Token"
+4. Copy the token and paste it into the UI at http://localhost:8080
+
+Or via curl:
+```bash
+# Get a token with full permissions
+TOKEN=$(curl -s -X POST http://localhost:8888/token \
+  -H 'Content-Type: application/json' \
+  -d '{"sub":"testuser","config_permissions":[{"path":"/config","actions":["read","write","list"]}]}' \
+  | jq -r '.access_token')
+
+# Use the token
+curl -H "Authorization: Bearer $TOKEN" http://localhost:3000/config/
+```
+
+### Using a Real OIDC Provider
+
+To use a real OIDC provider instead of the mock server, set environment variables:
 
 ```bash
-# Required: At least one JWKS source
+# Override mock OIDC with real provider
+OIDC_JWKS_URIS=https://your-idp.com/.well-known/jwks.json docker compose up -d
+# or
+OIDC_ISSUERS=https://accounts.google.com docker compose up -d
+```
+
+Or create a `.env` file:
+```bash
 OIDC_JWKS_URIS=https://your-idp.com/.well-known/jwks.json
 # or
 OIDC_ISSUERS=https://accounts.google.com
-
-# Optional
 OIDC_AUDIENCE=your-audience
-OIDC_CLAIMS_HEADERS=X-Userinfo
 ```
 
 ## Configuration
