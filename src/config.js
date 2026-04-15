@@ -53,6 +53,16 @@ export const config = {
     // JWKS cache TTL in seconds (0 = no caching, keys fetched every request)
     jwksCacheTtl: parseInt(process.env.OIDC_JWKS_CACHE_TTL, 10) || 120,
   },
+  cache: {
+    // Enable/disable config value caching
+    enabled: process.env.CACHE_ENABLED !== 'false',
+    // Maximum number of entries in the cache
+    maxSize: parseInt(process.env.CACHE_MAX_SIZE, 10) || 1000,
+    // Maximum memory usage in bytes (default 50MB)
+    maxMemory: parseInt(process.env.CACHE_MAX_MEMORY, 10) || 50 * 1024 * 1024,
+    // TTL in seconds (default 120 = 2 minutes)
+    ttl: parseInt(process.env.CACHE_TTL, 10) || 120,
+  },
   logLevel: process.env.LOG_LEVEL || 'info',
 };
 

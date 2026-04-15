@@ -249,6 +249,17 @@ UI_THEME=./my-theme.css UI_CONFIG=./my-config.js docker compose up -d
 | `AMQP_URL` | `amqp://localhost` | AMQP connection URL |
 | `AMQP_EXCHANGE` | `cqrcfg` | AMQP exchange name |
 
+### Cache Settings
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `CACHE_ENABLED` | `true` | Enable/disable config value caching |
+| `CACHE_MAX_SIZE` | `1000` | Maximum number of cache entries |
+| `CACHE_MAX_MEMORY` | `52428800` | Maximum cache memory in bytes (50MB) |
+| `CACHE_TTL` | `120` | Cache TTL in seconds (2 minutes) |
+
+The cache uses LRU (Least Recently Used) eviction with both entry count and memory limits to prevent memory exhaustion. Cache is automatically invalidated on writes.
+
 ## API Endpoints
 
 All endpoints (except `/health`) require a valid JWT in the `Authorization: Bearer <token>` header.
