@@ -56,10 +56,12 @@ services:
     ports:
       - "8080:80"
     # Mount custom theme and config for environment identification
-    # Uncomment and modify for your environment:
-    # volumes:
-    #   - ./ui/public/themes/dev.css:/usr/share/nginx/html/theme.css:ro
-    #   - ./config.dev.js:/usr/share/nginx/html/config.js:ro
+    # Set UI_THEME and UI_CONFIG env vars, or use UI_ENV shorthand:
+    #   UI_ENV=dev docker compose up -d
+    #   UI_THEME=./my-theme.css UI_CONFIG=./my-config.js docker compose up -d
+    volumes:
+      - ${UI_THEME:-./ui/public/themes/${UI_ENV:-default}.css}:/usr/share/nginx/html/theme.css:ro
+      - ${UI_CONFIG:-./config.${UI_ENV:-default}.js}:/usr/share/nginx/html/config.js:ro
     depends_on:
       - cqrcfg
 

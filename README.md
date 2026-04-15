@@ -177,37 +177,38 @@ OIDC_AUDIENCE=your-audience
 
 ### Environment-Specific Themes
 
-Use compose overlay files to apply environment-specific themes:
+Apply environment-specific themes using environment variables:
 
 ```bash
-# Development (green theme)
-docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d
+# Use built-in themes: default, dev, int, prod
+UI_ENV=dev docker compose up -d   # Green theme, "DEV" badge
+UI_ENV=int docker compose up -d   # Blue theme, "INT" badge
+UI_ENV=prod docker compose up -d  # Red theme, "PROD" badge
 
-# Integration (blue theme)
-docker compose -f docker-compose.yml -f docker-compose.int.yml up -d
-
-# Production (red theme)
-docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
+# Or specify custom file paths
+UI_THEME=./my-theme.css UI_CONFIG=./my-config.js docker compose up -d
 ```
 
-This mounts:
-- `theme.css` - CSS file with color variables
-- `config.js` - Runtime config with environment name badge
+**To create a custom theme:**
 
-**To customize:**
+1. Create a theme CSS file (copy from `ui/public/themes/default.css`):
+   ```css
+   :root {
+     --bg-primary: #1a1a2e;
+     --accent: #e94560;
+     --env-badge-bg: #e94560;
+     /* ... other variables */
+   }
+   ```
 
-1. Create your theme CSS (copy from `ui/public/themes/`)
-2. Create your config.js:
+2. Create a config.js file:
    ```javascript
    window.__CQRCFG_ENV__ = 'my-env';
    ```
-3. Mount both files in your compose file:
-   ```yaml
-   services:
-     ui:
-       volumes:
-         - ./my-theme.css:/usr/share/nginx/html/theme.css:ro
-         - ./my-config.js:/usr/share/nginx/html/config.js:ro
+
+3. Start with custom paths:
+   ```bash
+   UI_THEME=./my-theme.css UI_CONFIG=./my-config.js docker compose up -d
    ```
 
 ## Configuration
