@@ -19,6 +19,17 @@ export const api = {
     return handleResponse(response);
   },
 
+  async searchPaths(pattern, token) {
+    // pattern can include wildcards: * (single segment), ** (multi-segment), ? (single char)
+    const url = `${API_BASE}${pattern}/`;
+    const response = await fetch(url, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    });
+    return handleResponse(response);
+  },
+
   async getConfig(path, token) {
     const url = `${API_BASE}${path}`;
     const response = await fetch(url, {

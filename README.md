@@ -310,6 +310,31 @@ curl -H "Authorization: Bearer $TOKEN" http://localhost:3000/config/app1/
 }
 ```
 
+### Search Config Paths (Wildcards)
+
+The list endpoint supports wildcard patterns for searching across paths:
+
+| Pattern | Matches |
+|---------|---------|
+| `*` | Any characters except `/` (single path segment) |
+| `**` | Any characters including `/` (multiple segments) |
+| `?` | Single character except `/` |
+
+**Examples:**
+```bash
+# Find all "db" configs at any single level
+curl -H "Authorization: Bearer $TOKEN" "http://localhost:3000/config/*/db/"
+# Returns: /config/app1/db, /config/app2/db
+
+# Find all "db" configs at any nesting level
+curl -H "Authorization: Bearer $TOKEN" "http://localhost:3000/config/**/db/"
+# Returns: /config/app1/db, /config/team1/app1/db, /config/team2/service/db
+
+# Find configs matching pattern
+curl -H "Authorization: Bearer $TOKEN" "http://localhost:3000/config/app?/db/"
+# Returns: /config/app1/db, /config/app2/db (but not /config/app10/db)
+```
+
 ### Merge Update Config (PATCH)
 
 ```

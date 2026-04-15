@@ -200,4 +200,32 @@ export class DynamoDBStorage extends StorageInterface {
     return items.map(item => item.path);
   }
 
+  async searchPaths(regex) {
+    // DynamoDB doesn't support regex natively, so we scan and filter
+    // For production with large datasets, consider using OpenSearch/Elasticsearch
+    const results = [];
+    let lastKey = undefined;
+
+    do {
+      const response = await this.docClient.send(new QueryCommand({
+        TableName: this.tableName,
+        KeyConditionExpression: 'pk = :pk',
+        ExpressionAttributeValues: {
+          ':pk': 'config',
+        },
+        ExclusiveStartKey: lastKey,
+      }));
+
+      for (const item of response.Items || []) {
+        if (regex.test(item.path)) {
+          results.push(item.path);
+        }
+      }
+
+      lastKey = response.LastEvaluatedKey;
+    } while (lastKey);
+
+    return results;
+  }
+
 }

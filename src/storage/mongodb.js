@@ -82,6 +82,12 @@ export class MongoDBStorage extends StorageInterface {
     return docs.map(doc => doc.path);
   }
 
+  async searchPaths(regex) {
+    const collection = this.db.collection(COLLECTION);
+    const docs = await collection.find({ path: regex }, { projection: { path: 1, _id: 0 } }).toArray();
+    return docs.map(doc => doc.path);
+  }
+
 }
 
 function escapeRegex(str) {

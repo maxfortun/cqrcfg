@@ -24,6 +24,17 @@ export async function listPaths(basePath) {
   return paths;
 }
 
+export async function searchPaths(pattern) {
+  const backend = getStorage();
+  const paths = await backend.searchPaths(pattern);
+
+  if (paths.length === 0) {
+    return null;
+  }
+
+  return paths;
+}
+
 export async function patchNode(path, data) {
   const backend = getStorage();
   const existing = await backend.getByPath(path);

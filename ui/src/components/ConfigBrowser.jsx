@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { api } from '../api';
 
 export function ConfigBrowser({
   currentPath,
@@ -12,6 +13,10 @@ export function ConfigBrowser({
 }) {
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [newKeyName, setNewKeyName] = useState('');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchResults, setSearchResults] = useState(null);
+  const [isSearching, setIsSearching] = useState(false);
+  const [searchError, setSearchError] = useState(null);
 
   const getDisplayName = (path) => {
     const parts = path.split('/').filter(Boolean);
@@ -61,6 +66,40 @@ export function ConfigBrowser({
     setNewKeyName('');
   };
 
+  const handleSearch = async (e) => {
+    e.preventDefault();
+    if (!searchQuery.trim() || !token) return;
+
+    setIsSearching(true);
+    setSearchError(null);
+
+    try {
+      // Build search pattern - if query doesn't start with /, search under current path
+      let pattern = searchQuery.trim();
+      if (!pattern.startsWith('/')) {
+        // Auto-add wildcards for convenience: "db" -> "**/db**"
+        if (!pattern.includes('*') && !pattern.includes('?')) {
+          pattern = `**/*${pattern}*`;
+        }
+        pattern = `${currentPath}/${pattern}`;
+      }
+
+      const result = await api.searchPaths(pattern, token);
+      setSearchResults(result.keys || []);
+    } catch (err) {
+      setSearchError(err.message);
+      setSearchResults([]);
+    } finally {
+      setIsSearching(false);
+    }
+  };
+
+  const clearSearch = () => {
+    setSearchQuery('');
+    setSearchResults(null);
+    setSearchError(null);
+  };
+
   const handleItemClick = (path) => {
     const hasChildren = paths.some((p) => p !== path && p.startsWith(path + '/'));
     if (hasChildren) {
@@ -74,6 +113,10 @@ export function ConfigBrowser({
     onSelectPath(path);
   };
 
+  // Determine which paths to display
+  const displayPaths = searchResults !== null ? searchResults : immediateChildren;
+  const isShowingSearchResults = searchResults !== null;
+
   return (
     <div className="config-browser">
       <div className="browser-header">
@@ -84,7 +127,7 @@ export function ConfigBrowser({
               <span key={path}>
                 <button
                   className="breadcrumb-link"
-                  onClick={() => onNavigateTo(path)}
+                  onClick={() => { onNavigateTo(path); clearSearch(); }}
                 >
                   {segment}
                 </button>
@@ -95,9 +138,29 @@ export function ConfigBrowser({
         </div>
       </div>
 
+      <form className="search-form" onSubmit={handleSearch}>
+        <input
+          type="text"
+          className="search-input"
+          placeholder="Search keys... (*, **, ?)"
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+        />
+        <button type="submit" disabled={isSearching || !searchQuery.trim()}>
+          {isSearching ? '...' : 'Search'}
+        </button>
+        {isShowingSearchResults && (
+          <button type="button" onClick={clearSearch} className="clear-search">
+            Clear
+          </button>
+        )}
+      </form>
+
+      {searchError && <div className="search-error">{searchError}</div>}
+
       <div className="browser-toolbar">
         <button
-          onClick={onNavigateUp}
+          onClick={() => { onNavigateUp(); clearSearch(); }}
           disabled={currentPath === '/config'}
           title="Go up"
         >
@@ -106,13 +169,18 @@ export function ConfigBrowser({
         <button onClick={() => setShowCreateModal(true)} title="Create new">
           + New
         </button>
+        {isShowingSearchResults && (
+          <span className="search-count">{searchResults.length} results</span>
+        )}
       </div>
 
       <ul className="path-list">
-        {immediateChildren.length === 0 && (
-          <li className="empty-message">No configurations found</li>
+        {displayPaths.length === 0 && (
+          <li className="empty-message">
+            {isShowingSearchResults ? 'No matching configurations found' : 'No configurations found'}
+          </li>
         )}
-        {immediateChildren.map((path) => {
+        {displayPaths.map((path) => {
           const hasChildren = paths.some((p) => p !== path && p.startsWith(path + '/'));
           const isExact = paths.includes(path);
 
@@ -120,12 +188,14 @@ export function ConfigBrowser({
             <li
               key={path}
               className={`path-item ${selectedPath === path ? 'selected' : ''} ${hasChildren ? 'has-children' : ''}`}
-              onClick={() => handleItemClick(path)}
+              onClick={() => isShowingSearchResults ? onSelectPath(path) : handleItemClick(path)}
               onDoubleClick={() => handleItemDoubleClick(path)}
             >
-              <span className="path-icon">{hasChildren ? '/' : ''}</span>
-              <span className="path-name">{getDisplayName(path)}</span>
-              {isExact && <span className="path-badge">value</span>}
+              <span className="path-icon">{hasChildren && !isShowingSearchResults ? '/' : ''}</span>
+              <span className="path-name">
+                {isShowingSearchResults ? path : getDisplayName(path)}
+              </span>
+              {isExact && !isShowingSearchResults && <span className="path-badge">value</span>}
             </li>
           );
         })}

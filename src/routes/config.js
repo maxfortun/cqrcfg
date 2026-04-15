@@ -4,10 +4,58 @@ import { normalizePathHook } from '../middleware/normalizePath.js';
 import {
   getSubtree,
   listPaths,
+  searchPaths,
   patchNode,
   putNode,
   deleteSubtree,
 } from '../services/configService.js';
+
+/**
+ * Check if a path contains wildcard characters
+ */
+function hasWildcard(path) {
+  return path.includes('*') || path.includes('?');
+}
+
+/**
+ * Convert glob-style pattern to regex
+ * Supports: * (any chars except /), ** (any chars including /), ? (single char)
+ */
+function globToRegex(pattern) {
+  let regex = '^';
+  const specialChars = '\\^$.|+()[]{}';
+
+  let i = 0;
+  while (i < pattern.length) {
+    const char = pattern[i];
+
+    if (char === '*') {
+      if (pattern[i + 1] === '*') {
+        // ** matches anything including /
+        regex += '.*';
+        i += 2;
+      } else {
+        // * matches anything except /
+        regex += '[^/]*';
+        i++;
+      }
+    } else if (char === '?') {
+      // ? matches single char except /
+      regex += '[^/]';
+      i++;
+    } else if (specialChars.includes(char)) {
+      // Escape regex special chars
+      regex += '\\' + char;
+      i++;
+    } else {
+      regex += char;
+      i++;
+    }
+  }
+
+  regex += '$';
+  return new RegExp(regex);
+}
 
 /**
  * Helper to check authorization inline (for routes with conditional auth)
@@ -50,11 +98,11 @@ export default async function configRoutes(fastify) {
   // Common preHandler hooks for all routes
   const commonHooks = [authHook, normalizePathHook];
 
-  /**
-   * GET /config/*
-   * If path ends with '/', returns list of paths (requires 'list' permission)
-   * Otherwise, returns the full JSON subtree (requires 'read' permission)
-   */
+  // GET /config/*
+  // If path ends with '/', returns list of paths (requires 'list' permission)
+  //   - Supports wildcards: * (single segment), ** (multi-segment), ? (single char)
+  //   - Example: GET /config/app*/db/ matches /config/app1/db and /config/app2/db
+  // Otherwise, returns the full JSON subtree (requires 'read' permission)
   fastify.get('/*', {
     preHandler: [authHook, normalizePathHook],
   }, async (request, reply) => {
@@ -69,12 +117,20 @@ export default async function configRoutes(fastify) {
       const authzResult = await checkAuthz(request, reply, 'list');
       if (authzResult === false) return;
 
-      const paths = await listPaths(path);
+      let paths;
+
+      // Check for wildcard search
+      if (hasWildcard(path)) {
+        const regex = globToRegex(path);
+        paths = await searchPaths(regex);
+      } else {
+        paths = await listPaths(path);
+      }
 
       if (paths === null) {
         return reply.code(404).send({
           error: 'Not Found',
-          message: `No configuration found at path: ${path}`,
+          message: `No configuration found matching: ${path}`,
         });
       }
 

@@ -319,6 +319,85 @@ describe('Config API', async () => {
 
     assert.strictEqual(response.statusCode, 404);
   });
+
+  it('should search paths with wildcards', async () => {
+    const listToken = await createTestToken({
+      sub: 'list-user',
+      config_permissions: [
+        { path: '/config', actions: ['read', 'write', 'list'] },
+      ],
+    });
+
+    // Create multiple configs
+    await fastify.inject({
+      method: 'PUT',
+      url: '/config/app1/db',
+      headers: { Authorization: `Bearer ${listToken}`, 'Content-Type': 'application/json' },
+      payload: { host: 'db1' },
+    });
+    await fastify.inject({
+      method: 'PUT',
+      url: '/config/app2/db',
+      headers: { Authorization: `Bearer ${listToken}`, 'Content-Type': 'application/json' },
+      payload: { host: 'db2' },
+    });
+    await fastify.inject({
+      method: 'PUT',
+      url: '/config/app1/cache',
+      headers: { Authorization: `Bearer ${listToken}`, 'Content-Type': 'application/json' },
+      payload: { host: 'cache1' },
+    });
+
+    // Search with wildcard - find all db configs
+    const response = await fastify.inject({
+      method: 'GET',
+      url: '/config/*/db/',
+      headers: { Authorization: `Bearer ${listToken}` },
+    });
+
+    assert.strictEqual(response.statusCode, 200);
+    const body = JSON.parse(response.body);
+    assert.ok(Array.isArray(body.keys));
+    assert.ok(body.keys.includes('/config/app1/db'));
+    assert.ok(body.keys.includes('/config/app2/db'));
+    assert.ok(!body.keys.includes('/config/app1/cache'));
+  });
+
+  it('should search paths with ** wildcard', async () => {
+    const listToken = await createTestToken({
+      sub: 'list-user',
+      config_permissions: [
+        { path: '/config', actions: ['read', 'write', 'list'] },
+      ],
+    });
+
+    // Create nested configs
+    await fastify.inject({
+      method: 'PUT',
+      url: '/config/team1/app1/db',
+      headers: { Authorization: `Bearer ${listToken}`, 'Content-Type': 'application/json' },
+      payload: { host: 'db1' },
+    });
+    await fastify.inject({
+      method: 'PUT',
+      url: '/config/team2/app1/db',
+      headers: { Authorization: `Bearer ${listToken}`, 'Content-Type': 'application/json' },
+      payload: { host: 'db2' },
+    });
+
+    // Search with ** wildcard - find all db configs regardless of nesting
+    const response = await fastify.inject({
+      method: 'GET',
+      url: '/config/**/db/',
+      headers: { Authorization: `Bearer ${listToken}` },
+    });
+
+    assert.strictEqual(response.statusCode, 200);
+    const body = JSON.parse(response.body);
+    assert.ok(Array.isArray(body.keys));
+    assert.ok(body.keys.includes('/config/team1/app1/db'));
+    assert.ok(body.keys.includes('/config/team2/app1/db'));
+  });
 });
 
 describe('Authorization', async () => {

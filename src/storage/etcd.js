@@ -120,4 +120,19 @@ export class EtcdStorage extends StorageInterface {
     return items.map(item => item.path);
   }
 
+  async searchPaths(regex) {
+    // etcd doesn't support regex, so we get all keys and filter
+    const response = await this.client.getAll().prefix(this.prefix).keys();
+
+    const results = [];
+    for (const key of response) {
+      const path = this._fromEtcdKey(key);
+      if (regex.test(path)) {
+        results.push(path);
+      }
+    }
+
+    return results;
+  }
+
 }

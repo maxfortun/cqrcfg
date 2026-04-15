@@ -19,6 +19,7 @@
  * @property {function(string, Object): Promise<void>} upsert - Insert or replace a document
  * @property {function(string): Promise<number>} deleteByPrefix - Delete all docs matching path prefix
  * @property {function(string): Promise<string[]>} listPaths - List all paths under a prefix
+ * @property {function(RegExp): Promise<string[]>} searchPaths - Search paths matching a regex pattern
  */
 
 export class StorageInterface {
@@ -47,6 +48,10 @@ export class StorageInterface {
   }
 
   async listPaths(pathPrefix) {
+    throw new Error('Not implemented');
+  }
+
+  async searchPaths(regex) {
     throw new Error('Not implemented');
   }
 }
