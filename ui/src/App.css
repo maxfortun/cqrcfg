@@ -578,3 +578,25 @@ button.btn-delete:hover {
   justify-content: flex-end;
   gap: 0.5rem;
 }
+
+/* Read-only Badge */
+.readonly-badge {
+  padding: 0.25rem 0.5rem;
+  background: var(--warning);
+  color: #000;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+/* Disabled input styles */
+.form-field input:disabled,
+.form-field textarea:disabled,
+.form-field select:disabled,
+.json-editor textarea:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  background: var(--bg-primary);
+}

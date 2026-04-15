@@ -58,6 +58,66 @@ function globToRegex(pattern) {
 }
 
 /**
+ * Check if an object matches all filter criteria
+ * Supports nested paths via dot notation (e.g., "db.host=localhost")
+ * Values are compared as strings, numbers, or booleans
+ */
+function matchesFilter(obj, filters) {
+  if (!obj || typeof obj !== 'object') return false;
+
+  for (const [key, expectedValue] of Object.entries(filters)) {
+    // Support nested paths with dot notation
+    const value = getNestedValue(obj, key);
+
+    if (value === undefined) return false;
+
+    // Compare as appropriate type
+    if (!valuesMatch(value, expectedValue)) return false;
+  }
+
+  return true;
+}
+
+/**
+ * Get a nested value from an object using dot notation
+ */
+function getNestedValue(obj, path) {
+  const parts = path.split('.');
+  let current = obj;
+
+  for (const part of parts) {
+    if (current === null || current === undefined) return undefined;
+    if (typeof current !== 'object') return undefined;
+    current = current[part];
+  }
+
+  return current;
+}
+
+/**
+ * Compare values with type coercion
+ * Query params are strings, so we try to match against the actual type
+ */
+function valuesMatch(actual, expected) {
+  // Direct string match
+  if (String(actual) === expected) return true;
+
+  // Try parsing expected as number
+  if (typeof actual === 'number') {
+    const num = Number(expected);
+    if (!isNaN(num) && actual === num) return true;
+  }
+
+  // Try parsing expected as boolean
+  if (typeof actual === 'boolean') {
+    if (expected === 'true' && actual === true) return true;
+    if (expected === 'false' && actual === false) return true;
+  }
+
+  return false;
+}
+
+/**
  * Helper to check authorization inline (for routes with conditional auth)
  */
 async function checkAuthz(request, reply, requiredAction) {
@@ -147,6 +207,17 @@ export default async function configRoutes(fastify) {
           error: 'Not Found',
           message: `No configuration found at path: ${path}`,
         });
+      }
+
+      // Apply query parameter filters if any
+      const filters = request.query;
+      if (filters && Object.keys(filters).length > 0) {
+        if (!matchesFilter(tree, filters)) {
+          return reply.code(404).send({
+            error: 'Not Found',
+            message: `Configuration at path ${path} does not match filter criteria`,
+          });
+        }
       }
 
       return tree;

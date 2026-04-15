@@ -123,6 +123,11 @@ const server = createServer(async (req, res) => {
     pre { background: #16213e; padding: 15px; overflow-x: auto; border: 1px solid #444; word-break: break-all; white-space: pre-wrap; }
     .token { font-size: 12px; }
     label { display: block; margin-top: 15px; color: #00d4ff; }
+    .token-header { display: flex; justify-content: space-between; align-items: center; }
+    .copy-btn { background: transparent; border: 1px solid #00d4ff; color: #00d4ff; padding: 5px 10px; font-size: 12px; display: flex; align-items: center; gap: 5px; }
+    .copy-btn:hover { background: #00d4ff; color: #000; }
+    .copy-btn.copied { background: #4caf50; border-color: #4caf50; color: #fff; }
+    .copy-icon { width: 14px; height: 14px; }
   </style>
 </head>
 <body>
@@ -142,7 +147,16 @@ const server = createServer(async (req, res) => {
 
   <button onclick="generateToken()">Generate Token</button>
 
-  <label>Generated Token:</label>
+  <div class="token-header">
+    <label style="margin: 0;">Generated Token:</label>
+    <button class="copy-btn" onclick="copyToken()" id="copyBtn" title="Copy to clipboard">
+      <svg class="copy-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+        <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+      </svg>
+      <span id="copyText">Copy</span>
+    </button>
+  </div>
   <pre id="token" class="token">Click "Generate Token" to create a JWT</pre>
 
   <script>
@@ -157,8 +171,39 @@ const server = createServer(async (req, res) => {
         });
         const data = await res.json();
         document.getElementById('token').textContent = data.access_token;
+        document.getElementById('copyText').textContent = 'Copy';
+        document.getElementById('copyBtn').classList.remove('copied');
       } catch (e) {
         document.getElementById('token').textContent = 'Error: ' + e.message;
+      }
+    }
+
+    async function copyToken() {
+      const token = document.getElementById('token').textContent;
+      if (token.startsWith('Click') || token.startsWith('Error')) return;
+
+      try {
+        await navigator.clipboard.writeText(token);
+        document.getElementById('copyText').textContent = 'Copied!';
+        document.getElementById('copyBtn').classList.add('copied');
+        setTimeout(() => {
+          document.getElementById('copyText').textContent = 'Copy';
+          document.getElementById('copyBtn').classList.remove('copied');
+        }, 2000);
+      } catch (e) {
+        // Fallback for older browsers
+        const textarea = document.createElement('textarea');
+        textarea.value = token;
+        document.body.appendChild(textarea);
+        textarea.select();
+        document.execCommand('copy');
+        document.body.removeChild(textarea);
+        document.getElementById('copyText').textContent = 'Copied!';
+        document.getElementById('copyBtn').classList.add('copied');
+        setTimeout(() => {
+          document.getElementById('copyText').textContent = 'Copy';
+          document.getElementById('copyBtn').classList.remove('copied');
+        }, 2000);
       }
     }
   </script>

@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 
-export function ConfigEditor({ path, data, onSave, onDelete, onClose }) {
+export function ConfigEditor({ path, data, onSave, onDelete, onClose, canWrite }) {
   const [editMode, setEditMode] = useState('form'); // 'form' or 'json'
   const [jsonText, setJsonText] = useState('');
   const [formData, setFormData] = useState({});
@@ -89,11 +89,13 @@ export function ConfigEditor({ path, data, onSave, onDelete, onClose }) {
             value={JSON.stringify(value, null, 2)}
             onChange={(e) => handleFormFieldChange(key, e.target.value)}
             rows={Math.min(10, JSON.stringify(value, null, 2).split('\n').length + 1)}
+            disabled={!canWrite}
           />
         ) : valueType === 'boolean' ? (
           <select
             value={value.toString()}
             onChange={(e) => handleFormFieldChange(key, e.target.value)}
+            disabled={!canWrite}
           >
             <option value="true">true</option>
             <option value="false">false</option>
@@ -103,18 +105,21 @@ export function ConfigEditor({ path, data, onSave, onDelete, onClose }) {
             type="number"
             value={value}
             onChange={(e) => handleFormFieldChange(key, e.target.value)}
+            disabled={!canWrite}
           />
         ) : (
           <input
             type="text"
             value={value ?? ''}
             onChange={(e) => handleFormFieldChange(key, e.target.value)}
+            disabled={!canWrite}
           />
         )}
         <button
           className="remove-field"
           onClick={() => handleRemoveField(key)}
-          title="Remove field"
+          title={canWrite ? 'Remove field' : 'No write permission'}
+          disabled={!canWrite}
         >
           x
         </button>
@@ -126,6 +131,7 @@ export function ConfigEditor({ path, data, onSave, onDelete, onClose }) {
     <div className="config-editor">
       <div className="editor-header">
         <h2>{path}</h2>
+        {!canWrite && <span className="readonly-badge">Read Only</span>}
         <div className="editor-actions">
           <button onClick={onClose}>Close</button>
         </div>
@@ -153,9 +159,16 @@ export function ConfigEditor({ path, data, onSave, onDelete, onClose }) {
               renderFormField(key, value)
             )}
             {Object.keys(formData).length === 0 && (
-              <p className="empty-config">No fields. Click "Add Field" to add one.</p>
+              <p className="empty-config">
+                {canWrite ? 'No fields. Click "Add Field" to add one.' : 'No fields.'}
+              </p>
             )}
-            <button className="add-field" onClick={handleAddField}>
+            <button
+              className="add-field"
+              onClick={handleAddField}
+              disabled={!canWrite}
+              title={canWrite ? 'Add field' : 'No write permission'}
+            >
               + Add Field
             </button>
           </div>
@@ -166,6 +179,7 @@ export function ConfigEditor({ path, data, onSave, onDelete, onClose }) {
               onChange={(e) => handleJsonChange(e.target.value)}
               className={jsonError ? 'has-error' : ''}
               spellCheck={false}
+              disabled={!canWrite}
             />
             {jsonError && <div className="json-error">{jsonError}</div>}
           </div>
@@ -176,17 +190,20 @@ export function ConfigEditor({ path, data, onSave, onDelete, onClose }) {
         <button
           className="btn-delete"
           onClick={() => onDelete(path)}
+          disabled={!canWrite}
+          title={canWrite ? 'Delete configuration' : 'No write permission'}
         >
           Delete
         </button>
         <div className="editor-footer-right">
-          {hasChanges && (
+          {hasChanges && canWrite && (
             <button onClick={handleReset}>Reset</button>
           )}
           <button
             className="btn-save"
             onClick={handleSave}
-            disabled={!hasChanges || jsonError}
+            disabled={!canWrite || !hasChanges || jsonError}
+            title={canWrite ? 'Save changes' : 'No write permission'}
           >
             Save
           </button>

@@ -10,6 +10,7 @@ export function ConfigBrowser({
   onSelectPath,
   onCreateNew,
   token,
+  canWrite,
 }) {
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [newKeyName, setNewKeyName] = useState('');
@@ -166,7 +167,11 @@ export function ConfigBrowser({
         >
           ..
         </button>
-        <button onClick={() => setShowCreateModal(true)} title="Create new">
+        <button
+          onClick={() => setShowCreateModal(true)}
+          title={canWrite ? 'Create new' : 'No write permission'}
+          disabled={!canWrite}
+        >
           + New
         </button>
         {isShowingSearchResults && (

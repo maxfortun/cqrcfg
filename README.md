@@ -276,13 +276,35 @@ Returns service status (no authentication required).
 
 ```
 GET /config/:path
+GET /config/:path?key=value&key2=value2
 ```
 
 Returns the full JSON tree under the specified path. Requires `read` permission.
 
-**Example:**
+**Query Parameter Filtering:**
+
+Optionally filter results by specifying query parameters. The config is only returned if all filter criteria match. Returns 404 if the config exists but doesn't match the filter.
+
+- Supports dot notation for nested paths (e.g., `db.host=localhost`)
+- Automatically handles type coercion (strings, numbers, booleans)
+- All filters must match (AND logic)
+
+**Examples:**
 ```bash
+# Get config without filtering
 curl -H "Authorization: Bearer $TOKEN" http://localhost:3000/config/app1
+
+# Filter by top-level field
+curl -H "Authorization: Bearer $TOKEN" "http://localhost:3000/config/app1/db?host=localhost"
+
+# Filter by nested field (dot notation)
+curl -H "Authorization: Bearer $TOKEN" "http://localhost:3000/config/app1?db.port=5432"
+
+# Filter by multiple fields (all must match)
+curl -H "Authorization: Bearer $TOKEN" "http://localhost:3000/config/app1/db?host=localhost&port=5432"
+
+# Filter by boolean
+curl -H "Authorization: Bearer $TOKEN" "http://localhost:3000/config/app1?features.enabled=true"
 ```
 
 **Response:**
@@ -295,6 +317,14 @@ curl -H "Authorization: Bearer $TOKEN" http://localhost:3000/config/app1
   "features": {
     "enabled": true
   }
+}
+```
+
+**Filter Mismatch Response (404):**
+```json
+{
+  "error": "Not Found",
+  "message": "Configuration at path /config/app1/db does not match filter criteria"
 }
 ```
 

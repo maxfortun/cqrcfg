@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import './App.css';
 import { ConfigBrowser } from './components/ConfigBrowser';
 import { ConfigEditor } from './components/ConfigEditor';
@@ -8,6 +8,34 @@ import { api } from './api';
 // Environment name from runtime config (injected via /config.json or env var)
 const envName = window.__CQRCFG_ENV__ || '';
 
+// Parse JWT payload (without verification - server does that)
+function parseJwtPayload(token) {
+  if (!token) return null;
+  try {
+    const parts = token.split('.');
+    if (parts.length !== 3) return null;
+    const payload = JSON.parse(atob(parts[1]));
+    return payload;
+  } catch {
+    return null;
+  }
+}
+
+// Check if user has write permission for a given path
+function hasWritePermission(permissions, path) {
+  if (!permissions || !Array.isArray(permissions)) return false;
+
+  for (const perm of permissions) {
+    // Check if permission path is a prefix of the requested path (boundary-safe)
+    if (path === perm.path || path.startsWith(perm.path + '/')) {
+      if (Array.isArray(perm.actions) && perm.actions.includes('write')) {
+        return true;
+      }
+    }
+  }
+  return false;
+}
+
 function App() {
   const [token, setToken] = useState(localStorage.getItem('cqrcfg_token') || '');
   const [currentPath, setCurrentPath] = useState('/config');
@@ -16,6 +44,23 @@ function App() {
   const [configData, setConfigData] = useState(null);
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(false);
+
+  // Parse permissions from JWT
+  const permissions = useMemo(() => {
+    const payload = parseJwtPayload(token);
+    return payload?.config_permissions || [];
+  }, [token]);
+
+  // Check write permission for current path context
+  const canWriteCurrentPath = useMemo(() => {
+    return hasWritePermission(permissions, currentPath);
+  }, [permissions, currentPath]);
+
+  // Check write permission for selected path
+  const canWriteSelectedPath = useMemo(() => {
+    if (!selectedPath) return false;
+    return hasWritePermission(permissions, selectedPath);
+  }, [permissions, selectedPath]);
 
   const handleTokenChange = (newToken) => {
     setToken(newToken);
@@ -160,6 +205,7 @@ function App() {
             onSelectPath={loadConfig}
             onCreateNew={createConfig}
             token={token}
+            canWrite={canWriteCurrentPath}
           />
         </aside>
 
@@ -174,6 +220,7 @@ function App() {
                 setSelectedPath(null);
                 setConfigData(null);
               }}
+              canWrite={canWriteSelectedPath}
             />
           ) : (
             <div className="placeholder">
