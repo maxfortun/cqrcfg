@@ -3,6 +3,8 @@ import { config } from '../config.js';
 
 let combinedJwks = null;
 let jwksKeys = [];
+let jwksCacheExpiry = 0;
+let jwksRefreshPromise = null;
 
 /**
  * Fetch JWKS from an issuer's well-known endpoint
@@ -63,11 +65,9 @@ async function fetchDirectJwks(jwksUri) {
 }
 
 /**
- * Initialize and cache the combined JWKS from all sources
+ * Fetch and build the combined JWKS from all sources
  */
-async function initJWKS() {
-  if (combinedJwks) return combinedJwks;
-
+async function fetchAllJWKS() {
   const allKeys = [];
 
   // Fetch from each direct JWKS URI
@@ -92,15 +92,49 @@ async function initJWKS() {
   // Create a local JWK Set from combined keys
   combinedJwks = jose.createLocalJWKSet({ keys: allKeys });
 
-  console.log(`Loaded ${allKeys.length} JWKS key(s) from configured sources`);
+  // Set cache expiry
+  const ttlSeconds = config.oidc.jwksCacheTtl;
+  if (ttlSeconds > 0) {
+    jwksCacheExpiry = Date.now() + (ttlSeconds * 1000);
+  } else {
+    jwksCacheExpiry = 0; // No caching
+  }
+
+  console.log(`Loaded ${allKeys.length} JWKS key(s) from configured sources (cache TTL: ${ttlSeconds}s)`);
   return combinedJwks;
 }
 
 /**
- * Get the cached JWKS (initializes if needed)
+ * Check if the JWKS cache has expired
+ */
+function isJwksCacheExpired() {
+  if (!combinedJwks) return true;
+  if (config.oidc.jwksCacheTtl === 0) return true; // No caching
+  return Date.now() >= jwksCacheExpiry;
+}
+
+/**
+ * Get the cached JWKS, refreshing if expired.
+ * Uses debouncing to prevent multiple concurrent refreshes.
  */
 async function getJWKS() {
-  return initJWKS();
+  // Return cached keys if still valid
+  if (!isJwksCacheExpired()) {
+    return combinedJwks;
+  }
+
+  // If a refresh is already in progress, wait for it
+  if (jwksRefreshPromise) {
+    return jwksRefreshPromise;
+  }
+
+  // Start a new refresh
+  jwksRefreshPromise = fetchAllJWKS()
+    .finally(() => {
+      jwksRefreshPromise = null;
+    });
+
+  return jwksRefreshPromise;
 }
 
 /**

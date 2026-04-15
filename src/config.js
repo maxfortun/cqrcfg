@@ -50,6 +50,8 @@ export const config = {
     claimsHeaders: process.env.OIDC_CLAIMS_HEADERS
       ? process.env.OIDC_CLAIMS_HEADERS.split(',').map(h => h.trim()).filter(Boolean)
       : [],
+    // JWKS cache TTL in seconds (0 = no caching, keys fetched every request)
+    jwksCacheTtl: parseInt(process.env.OIDC_JWKS_CACHE_TTL, 10) || 120,
   },
   logLevel: process.env.LOG_LEVEL || 'info',
 };

@@ -223,8 +223,9 @@ UI_THEME=./my-theme.css UI_CONFIG=./my-config.js docker compose up -d
 | `OIDC_ISSUERS` | (optional) | Comma-separated OIDC issuer URLs (fetches JWKS from each issuer's well-known endpoint) |
 | `OIDC_AUDIENCE` | (optional) | Expected JWT audience |
 | `OIDC_CLAIMS_HEADERS` | (optional) | Comma-separated header names for claims |
+| `OIDC_JWKS_CACHE_TTL` | `120` | JWKS cache TTL in seconds (0 = no caching) |
 
-**Note:** At least one of `OIDC_JWKS_URIS` or `OIDC_ISSUERS` must be configured. Keys from all sources are combined for JWT verification.
+**Note:** At least one of `OIDC_JWKS_URIS` or `OIDC_ISSUERS` must be configured. Keys from all sources are combined for JWT verification. JWKS keys are cached and refreshed every `OIDC_JWKS_CACHE_TTL` seconds (default 120s) to support key rotation.
 
 ### Storage Settings
 
