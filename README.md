@@ -27,6 +27,9 @@ A production-ready Node.js microservice built with **Fastify** that provides a *
 ```bash
 npm install
 
+# Install UI dependencies (optional)
+npm run ui:install
+
 # Install storage driver (pick one)
 npm install mongodb          # For MongoDB
 npm install @aws-sdk/client-dynamodb @aws-sdk/lib-dynamodb  # For DynamoDB
@@ -55,7 +58,29 @@ npm start
 
 # Development (with auto-reload)
 npm run dev
+
+# Start UI development server (in another terminal)
+npm run ui
 ```
+
+## Web UI
+
+The project includes a React-based web UI for browsing and editing configurations.
+
+### Running the UI
+
+```bash
+# Install UI dependencies
+npm run ui:install
+
+# Start UI development server (proxies API to localhost:3000)
+npm run ui
+
+# Build for production
+npm run ui:build
+```
+
+The UI will be available at `http://localhost:5173` and requires a valid JWT token with appropriate permissions (`read`, `write`, `list`) to browse and edit configurations.
 
 ## Configuration
 

@@ -1,0 +1,197 @@
+import { useState, useEffect } from 'react';
+
+export function ConfigEditor({ path, data, onSave, onDelete, onClose }) {
+  const [editMode, setEditMode] = useState('form'); // 'form' or 'json'
+  const [jsonText, setJsonText] = useState('');
+  const [formData, setFormData] = useState({});
+  const [jsonError, setJsonError] = useState(null);
+  const [hasChanges, setHasChanges] = useState(false);
+
+  useEffect(() => {
+    if (data) {
+      setJsonText(JSON.stringify(data, null, 2));
+      setFormData(data);
+      setHasChanges(false);
+      setJsonError(null);
+    }
+  }, [data]);
+
+  const handleJsonChange = (value) => {
+    setJsonText(value);
+    setHasChanges(true);
+    try {
+      const parsed = JSON.parse(value);
+      setFormData(parsed);
+      setJsonError(null);
+    } catch (e) {
+      setJsonError(e.message);
+    }
+  };
+
+  const handleFormFieldChange = (key, value) => {
+    const newData = { ...formData };
+
+    // Try to parse as JSON for complex values
+    try {
+      newData[key] = JSON.parse(value);
+    } catch {
+      newData[key] = value;
+    }
+
+    setFormData(newData);
+    setJsonText(JSON.stringify(newData, null, 2));
+    setHasChanges(true);
+  };
+
+  const handleAddField = () => {
+    const key = prompt('Enter field name:');
+    if (key && !formData.hasOwnProperty(key)) {
+      handleFormFieldChange(key, '');
+    }
+  };
+
+  const handleRemoveField = (key) => {
+    const newData = { ...formData };
+    delete newData[key];
+    setFormData(newData);
+    setJsonText(JSON.stringify(newData, null, 2));
+    setHasChanges(true);
+  };
+
+  const handleSave = () => {
+    if (jsonError) {
+      alert('Please fix JSON errors before saving');
+      return;
+    }
+    onSave(path, formData);
+    setHasChanges(false);
+  };
+
+  const handleReset = () => {
+    setJsonText(JSON.stringify(data, null, 2));
+    setFormData(data);
+    setHasChanges(false);
+    setJsonError(null);
+  };
+
+  const renderFormField = (key, value) => {
+    const valueType = typeof value;
+    const isComplex = valueType === 'object' && value !== null;
+
+    return (
+      <div key={key} className="form-field">
+        <label>
+          <span className="field-key">{key}</span>
+          <span className="field-type">{isComplex ? (Array.isArray(value) ? 'array' : 'object') : valueType}</span>
+        </label>
+        {isComplex ? (
+          <textarea
+            value={JSON.stringify(value, null, 2)}
+            onChange={(e) => handleFormFieldChange(key, e.target.value)}
+            rows={Math.min(10, JSON.stringify(value, null, 2).split('\n').length + 1)}
+          />
+        ) : valueType === 'boolean' ? (
+          <select
+            value={value.toString()}
+            onChange={(e) => handleFormFieldChange(key, e.target.value)}
+          >
+            <option value="true">true</option>
+            <option value="false">false</option>
+          </select>
+        ) : valueType === 'number' ? (
+          <input
+            type="number"
+            value={value}
+            onChange={(e) => handleFormFieldChange(key, e.target.value)}
+          />
+        ) : (
+          <input
+            type="text"
+            value={value ?? ''}
+            onChange={(e) => handleFormFieldChange(key, e.target.value)}
+          />
+        )}
+        <button
+          className="remove-field"
+          onClick={() => handleRemoveField(key)}
+          title="Remove field"
+        >
+          x
+        </button>
+      </div>
+    );
+  };
+
+  return (
+    <div className="config-editor">
+      <div className="editor-header">
+        <h2>{path}</h2>
+        <div className="editor-actions">
+          <button onClick={onClose}>Close</button>
+        </div>
+      </div>
+
+      <div className="editor-tabs">
+        <button
+          className={editMode === 'form' ? 'active' : ''}
+          onClick={() => setEditMode('form')}
+        >
+          Form
+        </button>
+        <button
+          className={editMode === 'json' ? 'active' : ''}
+          onClick={() => setEditMode('json')}
+        >
+          JSON
+        </button>
+      </div>
+
+      <div className="editor-content">
+        {editMode === 'form' ? (
+          <div className="form-editor">
+            {Object.entries(formData).map(([key, value]) =>
+              renderFormField(key, value)
+            )}
+            {Object.keys(formData).length === 0 && (
+              <p className="empty-config">No fields. Click "Add Field" to add one.</p>
+            )}
+            <button className="add-field" onClick={handleAddField}>
+              + Add Field
+            </button>
+          </div>
+        ) : (
+          <div className="json-editor">
+            <textarea
+              value={jsonText}
+              onChange={(e) => handleJsonChange(e.target.value)}
+              className={jsonError ? 'has-error' : ''}
+              spellCheck={false}
+            />
+            {jsonError && <div className="json-error">{jsonError}</div>}
+          </div>
+        )}
+      </div>
+
+      <div className="editor-footer">
+        <button
+          className="btn-delete"
+          onClick={() => onDelete(path)}
+        >
+          Delete
+        </button>
+        <div className="editor-footer-right">
+          {hasChanges && (
+            <button onClick={handleReset}>Reset</button>
+          )}
+          <button
+            className="btn-save"
+            onClick={handleSave}
+            disabled={!hasChanges || jsonError}
+          >
+            Save
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
