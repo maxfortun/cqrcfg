@@ -120,6 +120,7 @@ export async function searchPaths(pattern) {
   // Search results are not cached since patterns can vary widely
   // and caching regex matches would be complex
   const backend = getStorage();
+  // Pattern is now a glob string, conversion to regex happens in storage layer
   const paths = await backend.searchPaths(pattern);
 
   if (paths.length === 0) {
@@ -127,6 +128,18 @@ export async function searchPaths(pattern) {
   }
 
   return paths;
+}
+
+export async function getSubtreeWithFilter(basePath, filters) {
+  // Filtered queries are not cached since filter combinations vary widely
+  const backend = getStorage();
+  const doc = await backend.getByPathWithFilter(basePath, filters);
+
+  if (!doc) {
+    return null;
+  }
+
+  return doc.data;
 }
 
 export async function patchNode(path, data) {

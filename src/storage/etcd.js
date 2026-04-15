@@ -1,5 +1,5 @@
 import { Etcd3 } from 'etcd3';
-import { StorageInterface } from './interface.js';
+import { StorageInterface, globToRegex, matchesFilter } from './interface.js';
 
 export class EtcdStorage extends StorageInterface {
   constructor(options) {
@@ -84,6 +84,16 @@ export class EtcdStorage extends StorageInterface {
     }
   }
 
+  async getByPathWithFilter(path, filters) {
+    const doc = await this.getByPath(path);
+    if (!doc) return null;
+
+    // etcd doesn't support filtering, do it in memory
+    if (!matchesFilter(doc.data, filters)) return null;
+
+    return doc;
+  }
+
   async upsert(path, data) {
     const etcdKey = this._toEtcdKey(path);
     const value = JSON.stringify({
@@ -120,8 +130,9 @@ export class EtcdStorage extends StorageInterface {
     return items.map(item => item.path);
   }
 
-  async searchPaths(regex) {
+  async searchPaths(pattern) {
     // etcd doesn't support regex, so we get all keys and filter
+    const regex = globToRegex(pattern);
     const response = await this.client.getAll().prefix(this.prefix).keys();
 
     const results = [];

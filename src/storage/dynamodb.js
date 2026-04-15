@@ -10,8 +10,9 @@ import {
   PutCommand,
   DeleteCommand,
   BatchWriteCommand,
+  ScanCommand,
 } from '@aws-sdk/lib-dynamodb';
-import { StorageInterface } from './interface.js';
+import { StorageInterface, globToRegex, matchesFilter } from './interface.js';
 
 export class DynamoDBStorage extends StorageInterface {
   constructor(options) {
@@ -153,6 +154,16 @@ export class DynamoDBStorage extends StorageInterface {
     };
   }
 
+  async getByPathWithFilter(path, filters) {
+    const doc = await this.getByPath(path);
+    if (!doc) return null;
+
+    // DynamoDB doesn't support nested JSON queries, filter in memory
+    if (!matchesFilter(doc.data, filters)) return null;
+
+    return doc;
+  }
+
   async upsert(path, data) {
     await this.docClient.send(new PutCommand({
       TableName: this.tableName,
@@ -200,19 +211,18 @@ export class DynamoDBStorage extends StorageInterface {
     return items.map(item => item.path);
   }
 
-  async searchPaths(regex) {
+  async searchPaths(pattern) {
     // DynamoDB doesn't support regex natively, so we scan and filter
     // For production with large datasets, consider using OpenSearch/Elasticsearch
+    const regex = globToRegex(pattern);
     const results = [];
     let lastKey = undefined;
 
     do {
-      const response = await this.docClient.send(new QueryCommand({
+      const response = await this.docClient.send(new ScanCommand({
         TableName: this.tableName,
-        KeyConditionExpression: 'pk = :pk',
-        ExpressionAttributeValues: {
-          ':pk': 'config',
-        },
+        ProjectionExpression: '#path',
+        ExpressionAttributeNames: { '#path': 'path' },
         ExclusiveStartKey: lastKey,
       }));
 

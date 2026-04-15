@@ -3,119 +3,14 @@ import { authzHook } from '../middleware/authz.js';
 import { normalizePathHook } from '../middleware/normalizePath.js';
 import {
   getSubtree,
+  getSubtreeWithFilter,
   listPaths,
   searchPaths,
   patchNode,
   putNode,
   deleteSubtree,
 } from '../services/configService.js';
-
-/**
- * Check if a path contains wildcard characters
- */
-function hasWildcard(path) {
-  return path.includes('*') || path.includes('?');
-}
-
-/**
- * Convert glob-style pattern to regex
- * Supports: * (any chars except /), ** (any chars including /), ? (single char)
- */
-function globToRegex(pattern) {
-  let regex = '^';
-  const specialChars = '\\^$.|+()[]{}';
-
-  let i = 0;
-  while (i < pattern.length) {
-    const char = pattern[i];
-
-    if (char === '*') {
-      if (pattern[i + 1] === '*') {
-        // ** matches anything including /
-        regex += '.*';
-        i += 2;
-      } else {
-        // * matches anything except /
-        regex += '[^/]*';
-        i++;
-      }
-    } else if (char === '?') {
-      // ? matches single char except /
-      regex += '[^/]';
-      i++;
-    } else if (specialChars.includes(char)) {
-      // Escape regex special chars
-      regex += '\\' + char;
-      i++;
-    } else {
-      regex += char;
-      i++;
-    }
-  }
-
-  regex += '$';
-  return new RegExp(regex);
-}
-
-/**
- * Check if an object matches all filter criteria
- * Supports nested paths via dot notation (e.g., "db.host=localhost")
- * Values are compared as strings, numbers, or booleans
- */
-function matchesFilter(obj, filters) {
-  if (!obj || typeof obj !== 'object') return false;
-
-  for (const [key, expectedValue] of Object.entries(filters)) {
-    // Support nested paths with dot notation
-    const value = getNestedValue(obj, key);
-
-    if (value === undefined) return false;
-
-    // Compare as appropriate type
-    if (!valuesMatch(value, expectedValue)) return false;
-  }
-
-  return true;
-}
-
-/**
- * Get a nested value from an object using dot notation
- */
-function getNestedValue(obj, path) {
-  const parts = path.split('.');
-  let current = obj;
-
-  for (const part of parts) {
-    if (current === null || current === undefined) return undefined;
-    if (typeof current !== 'object') return undefined;
-    current = current[part];
-  }
-
-  return current;
-}
-
-/**
- * Compare values with type coercion
- * Query params are strings, so we try to match against the actual type
- */
-function valuesMatch(actual, expected) {
-  // Direct string match
-  if (String(actual) === expected) return true;
-
-  // Try parsing expected as number
-  if (typeof actual === 'number') {
-    const num = Number(expected);
-    if (!isNaN(num) && actual === num) return true;
-  }
-
-  // Try parsing expected as boolean
-  if (typeof actual === 'boolean') {
-    if (expected === 'true' && actual === true) return true;
-    if (expected === 'false' && actual === false) return true;
-  }
-
-  return false;
-}
+import { hasWildcard } from '../storage/interface.js';
 
 /**
  * Helper to check authorization inline (for routes with conditional auth)
@@ -179,10 +74,9 @@ export default async function configRoutes(fastify) {
 
       let paths;
 
-      // Check for wildcard search
+      // Check for wildcard search - pattern conversion happens in storage layer
       if (hasWildcard(path)) {
-        const regex = globToRegex(path);
-        paths = await searchPaths(regex);
+        paths = await searchPaths(path);
       } else {
         paths = await listPaths(path);
       }
@@ -200,24 +94,22 @@ export default async function configRoutes(fastify) {
       const authzResult = await checkAuthz(request, reply, 'read');
       if (authzResult === false) return;
 
-      const tree = await getSubtree(path);
+      // Apply query parameter filters at storage layer if any
+      const filters = request.query;
+      const hasFilters = filters && Object.keys(filters).length > 0;
+
+      const tree = hasFilters
+        ? await getSubtreeWithFilter(path, filters)
+        : await getSubtree(path);
 
       if (tree === null) {
+        const message = hasFilters
+          ? `Configuration at path ${path} does not match filter criteria`
+          : `No configuration found at path: ${path}`;
         return reply.code(404).send({
           error: 'Not Found',
-          message: `No configuration found at path: ${path}`,
+          message,
         });
-      }
-
-      // Apply query parameter filters if any
-      const filters = request.query;
-      if (filters && Object.keys(filters).length > 0) {
-        if (!matchesFilter(tree, filters)) {
-          return reply.code(404).send({
-            error: 'Not Found',
-            message: `Configuration at path ${path} does not match filter criteria`,
-          });
-        }
       }
 
       return tree;

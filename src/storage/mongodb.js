@@ -1,5 +1,5 @@
 import { MongoClient } from 'mongodb';
-import { StorageInterface } from './interface.js';
+import { StorageInterface, globToRegex, matchesFilter } from './interface.js';
 
 const COLLECTION = 'config';
 
@@ -50,6 +50,30 @@ export class MongoDBStorage extends StorageInterface {
     return collection.findOne({ path });
   }
 
+  async getByPathWithFilter(path, filters) {
+    const collection = this.db.collection(COLLECTION);
+
+    if (!filters || Object.keys(filters).length === 0) {
+      return collection.findOne({ path });
+    }
+
+    // Build MongoDB query for nested data fields
+    const query = { path };
+    for (const [key, value] of Object.entries(filters)) {
+      const dataKey = `data.${key}`;
+      // Try to parse as number or boolean for exact matching
+      let parsedValue = value;
+      if (value === 'true') parsedValue = true;
+      else if (value === 'false') parsedValue = false;
+      else if (!isNaN(Number(value)) && value !== '') parsedValue = Number(value);
+
+      // Match either the parsed value or string representation
+      query[dataKey] = { $in: [parsedValue, value] };
+    }
+
+    return collection.findOne(query);
+  }
+
   async upsert(path, data) {
     const collection = this.db.collection(COLLECTION);
 
@@ -82,8 +106,9 @@ export class MongoDBStorage extends StorageInterface {
     return docs.map(doc => doc.path);
   }
 
-  async searchPaths(regex) {
+  async searchPaths(pattern) {
     const collection = this.db.collection(COLLECTION);
+    const regex = globToRegex(pattern);
     const docs = await collection.find({ path: regex }, { projection: { path: 1, _id: 0 } }).toArray();
     return docs.map(doc => doc.path);
   }
