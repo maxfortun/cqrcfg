@@ -5,6 +5,10 @@
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Config Manager</title>
+    <!-- Theme CSS - can be overridden via /theme.css mount -->
+    <link rel="stylesheet" href="/theme.css" onerror="this.href='/themes/default.css'" />
+    <!-- Runtime config - can be overridden via /config.js mount -->
+    <script src="/config.js"></script>
   </head>
   <body>
     <div id="root"></div>

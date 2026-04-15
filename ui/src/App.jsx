@@ -5,6 +5,9 @@ import { ConfigEditor } from './components/ConfigEditor';
 import { TokenInput } from './components/TokenInput';
 import { api } from './api';
 
+// Environment name from runtime config (injected via /config.json or env var)
+const envName = window.__CQRCFG_ENV__ || '';
+
 function App() {
   const [token, setToken] = useState(localStorage.getItem('cqrcfg_token') || '');
   const [currentPath, setCurrentPath] = useState('/config');
@@ -133,6 +136,7 @@ function App() {
     <div className="app">
       <header className="app-header">
         <h1>Config Manager</h1>
+        {envName && <span className="env-badge">{envName}</span>}
         <TokenInput token={token} onTokenChange={handleTokenChange} />
       </header>
 

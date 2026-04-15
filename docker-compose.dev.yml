@@ -1,0 +1,7 @@
+# Development environment overlay
+# Usage: docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d
+services:
+  ui:
+    volumes:
+      - ./ui/public/themes/dev.css:/usr/share/nginx/html/theme.css:ro
+      - ./config.dev.js:/usr/share/nginx/html/config.js:ro

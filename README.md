@@ -82,6 +82,37 @@ npm run ui:build
 
 The UI will be available at `http://localhost:5173` and requires a valid JWT token with appropriate permissions (`read`, `write`, `list`) to browse and edit configurations.
 
+### Environment Themes
+
+The UI supports runtime theming to visually distinguish between environments (dev, int, prod). Themes are CSS files that override CSS variables.
+
+**Available themes:**
+- `ui/public/themes/default.css` - Dark blue (default)
+- `ui/public/themes/dev.css` - Green accent
+- `ui/public/themes/int.css` - Blue accent
+- `ui/public/themes/prod.css` - Red accent
+
+**CSS Variables:**
+```css
+:root {
+  --bg-primary: #1a1a2e;      /* Main background */
+  --bg-secondary: #16213e;    /* Sidebar, cards */
+  --bg-tertiary: #0f3460;     /* Inputs, buttons */
+  --text-primary: #e8e8e8;    /* Main text */
+  --text-secondary: #a8a8a8;  /* Muted text */
+  --accent: #e94560;          /* Primary accent color */
+  --accent-hover: #ff6b6b;    /* Accent hover state */
+  --success: #4caf50;
+  --warning: #ff9800;
+  --error: #f44336;
+  --border: #2a2a4a;
+  --env-badge-bg: #e94560;    /* Environment badge background */
+  --env-badge-text: #ffffff;  /* Environment badge text */
+}
+```
+
+**To create a custom theme:** Copy an existing theme file and modify the CSS variables.
+
 ## Docker Compose
 
 Run the entire stack locally with Docker Compose. Includes a mock OIDC server for local development:
@@ -143,6 +174,41 @@ OIDC_JWKS_URIS=https://your-idp.com/.well-known/jwks.json
 OIDC_ISSUERS=https://accounts.google.com
 OIDC_AUDIENCE=your-audience
 ```
+
+### Environment-Specific Themes
+
+Use compose overlay files to apply environment-specific themes:
+
+```bash
+# Development (green theme)
+docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d
+
+# Integration (blue theme)
+docker compose -f docker-compose.yml -f docker-compose.int.yml up -d
+
+# Production (red theme)
+docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
+```
+
+This mounts:
+- `theme.css` - CSS file with color variables
+- `config.js` - Runtime config with environment name badge
+
+**To customize:**
+
+1. Create your theme CSS (copy from `ui/public/themes/`)
+2. Create your config.js:
+   ```javascript
+   window.__CQRCFG_ENV__ = 'my-env';
+   ```
+3. Mount both files in your compose file:
+   ```yaml
+   services:
+     ui:
+       volumes:
+         - ./my-theme.css:/usr/share/nginx/html/theme.css:ro
+         - ./my-config.js:/usr/share/nginx/html/config.js:ro
+   ```
 
 ## Configuration
 

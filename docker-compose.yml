@@ -55,6 +55,11 @@ services:
       dockerfile: Dockerfile
     ports:
       - "8080:80"
+    # Mount custom theme and config for environment identification
+    # Uncomment and modify for your environment:
+    # volumes:
+    #   - ./ui/public/themes/dev.css:/usr/share/nginx/html/theme.css:ro
+    #   - ./config.dev.js:/usr/share/nginx/html/config.js:ro
     depends_on:
       - cqrcfg
 

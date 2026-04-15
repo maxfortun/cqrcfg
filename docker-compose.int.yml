@@ -1,0 +1,7 @@
+# Integration environment overlay
+# Usage: docker compose -f docker-compose.yml -f docker-compose.int.yml up -d
+services:
+  ui:
+    volumes:
+      - ./ui/public/themes/int.css:/usr/share/nginx/html/theme.css:ro
+      - ./config.int.js:/usr/share/nginx/html/config.js:ro

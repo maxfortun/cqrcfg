@@ -1,0 +1,16 @@
+/* Default theme - Dark blue */
+:root {
+  --bg-primary: #1a1a2e;
+  --bg-secondary: #16213e;
+  --bg-tertiary: #0f3460;
+  --text-primary: #e8e8e8;
+  --text-secondary: #a8a8a8;
+  --accent: #e94560;
+  --accent-hover: #ff6b6b;
+  --success: #4caf50;
+  --warning: #ff9800;
+  --error: #f44336;
+  --border: #2a2a4a;
+  --env-badge-bg: var(--bg-tertiary);
+  --env-badge-text: var(--text-secondary);
+}

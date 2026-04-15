@@ -2,6 +2,7 @@
   box-sizing: border-box;
 }
 
+/* Default fallback values - will be overridden by theme.css */
 :root {
   --bg-primary: #1a1a2e;
   --bg-secondary: #16213e;
@@ -14,6 +15,8 @@
   --warning: #ff9800;
   --error: #f44336;
   --border: #2a2a4a;
+  --env-badge-bg: var(--bg-tertiary);
+  --env-badge-text: var(--text-secondary);
 }
 
 body {
@@ -43,6 +46,17 @@ body {
   margin: 0;
   font-size: 1.5rem;
   color: var(--accent);
+}
+
+.env-badge {
+  padding: 0.25rem 0.75rem;
+  background: var(--env-badge-bg);
+  color: var(--env-badge-text);
+  border-radius: 4px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
 }
 
 /* Token Input */
