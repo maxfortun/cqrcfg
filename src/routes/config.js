@@ -130,44 +130,10 @@ export default async function configRoutes(fastify) {
     }
   });
 
-  /**
-   * PATCH /config/*
-   * Deep merge partial JSON into existing node (upsert)
-   */
-  fastify.patch('/*', {
-    preHandler: [...commonHooks, authzHook('write')],
-  }, async (request, reply) => {
-    const path = request.configPath;
-    const data = request.body;
-
-    if (!data || typeof data !== 'object' || Array.isArray(data)) {
-      return reply.code(400).send({
-        error: 'Bad Request',
-        message: 'Request body must be a JSON object',
-      });
-    }
-
-    const result = await patchNode(path, data);
-
-    return {
-      path,
-      data: result,
-      message: 'Configuration updated successfully',
-    };
-  });
-
-  /**
-   * PUT /config/*
-   * Fully replace node data
-   *
-   * Default: data from request body
-   * With ?source=path&path=/other/path: clone from another config path
-   */
-  fastify.put('/*', {
-    preHandler: [authHook, normalizePathHook],
-  }, async (request, reply) => {
+  // Shared handler for POST and PATCH - both do merge (preserve missing values)
+  async function mergeHandler(request, reply) {
     const destPath = request.configPath;
-    const { source, path: sourcePath } = request.query;
+    const { from } = request.query;
 
     // Check write permission on destination
     if (!checkAuthzForPath(request.user, destPath, 'write')) {
@@ -179,19 +145,104 @@ export default async function configRoutes(fastify) {
 
     let data;
 
-    if (source === 'path') {
-      // Clone from another path
-      if (!sourcePath) {
+    if (from) {
+      // Merge from another path
+      const normalizedSource = from.startsWith('/config')
+        ? from
+        : `/config${from.startsWith('/') ? '' : '/'}${from}`;
+
+      if (normalizedSource === destPath) {
         return reply.code(400).send({
           error: 'Bad Request',
-          message: 'Query parameter "path" is required when source=path',
+          message: 'Source and destination paths must be different',
         });
       }
 
-      // Normalize source path
-      const normalizedSource = sourcePath.startsWith('/config')
-        ? sourcePath
-        : `/config${sourcePath.startsWith('/') ? '' : '/'}${sourcePath}`;
+      // Check read permission on source
+      if (!checkAuthzForPath(request.user, normalizedSource, 'read')) {
+        return reply.code(403).send({
+          error: 'Forbidden',
+          message: `Access denied: no read permission for source path ${normalizedSource}`,
+        });
+      }
+
+      // Get source config
+      data = await getSubtree(normalizedSource);
+
+      if (data === null) {
+        return reply.code(404).send({
+          error: 'Not Found',
+          message: `No configuration found at source path: ${normalizedSource}`,
+        });
+      }
+    } else {
+      // Default: data from body
+      data = request.body;
+
+      if (!data || typeof data !== 'object' || Array.isArray(data)) {
+        return reply.code(400).send({
+          error: 'Bad Request',
+          message: 'Request body must be a JSON object',
+        });
+      }
+    }
+
+    const result = await patchNode(destPath, data);
+
+    return {
+      path: destPath,
+      data: result,
+      message: 'Configuration merged successfully',
+    };
+  }
+
+  /**
+   * POST /config/*
+   * Merge partial data into existing node (upsert) - missing values are preserved
+   *
+   * Default: data from request body
+   * With ?from=/other/path: merge from another config path
+   */
+  fastify.post('/*', {
+    preHandler: [authHook, normalizePathHook],
+  }, mergeHandler);
+
+  /**
+   * PATCH /config/*
+   * Same as POST - merge partial data (preserve missing values)
+   */
+  fastify.patch('/*', {
+    preHandler: [authHook, normalizePathHook],
+  }, mergeHandler);
+
+  /**
+   * PUT /config/*
+   * Fully replace node data
+   *
+   * Default: data from request body
+   * With ?from=/other/path: clone from another config path
+   */
+  fastify.put('/*', {
+    preHandler: [authHook, normalizePathHook],
+  }, async (request, reply) => {
+    const destPath = request.configPath;
+    const { from } = request.query;
+
+    // Check write permission on destination
+    if (!checkAuthzForPath(request.user, destPath, 'write')) {
+      return reply.code(403).send({
+        error: 'Forbidden',
+        message: `Access denied: no write permission for path ${destPath}`,
+      });
+    }
+
+    let data;
+
+    if (from) {
+      // Clone from another path
+      const normalizedSource = from.startsWith('/config')
+        ? from
+        : `/config${from.startsWith('/') ? '' : '/'}${from}`;
 
       if (normalizedSource === destPath) {
         return reply.code(400).send({

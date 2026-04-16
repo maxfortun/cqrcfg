@@ -377,22 +377,38 @@ curl -H "Authorization: Bearer $TOKEN" "http://localhost:3000/config/app?/db/"
 # Returns: /config/app1/db, /config/app2/db (but not /config/app10/db)
 ```
 
-### Merge Update Config (PATCH)
+### Merge Config (POST)
 
 ```
-PATCH /config/:path
+POST /config/:path
 Content-Type: application/json
 ```
 
-Deep merges the request body into the existing configuration at the path.
+Merges the request body into the existing configuration. Missing values are preserved. Requires `write` permission.
 
 **Example:**
 ```bash
-curl -X PATCH \
+# Existing: {"host": "localhost", "port": 5432, "user": "admin"}
+curl -X POST \
   -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"host": "new-host"}' \
   http://localhost:3000/config/app1/db
+# Result: {"host": "new-host", "port": 5432, "user": "admin"}
+```
+
+#### Merge from Another Path
+
+```
+POST /config/:path?from=/source/path
+```
+
+When `from` is specified, merges configuration from another path. Requires `read` on source and `write` on destination.
+
+```bash
+curl -X POST \
+  -H "Authorization: Bearer $TOKEN" \
+  "http://localhost:3000/config/app2/db?from=/config/app1/db"
 ```
 
 ### Replace Config (PUT)
@@ -402,38 +418,34 @@ PUT /config/:path
 Content-Type: application/json
 ```
 
-Completely replaces the configuration at the path. By default, data comes from the request body.
+Completely replaces the configuration at the path. All existing values are overwritten. Requires `write` permission.
 
 **Example:**
 ```bash
+# Existing: {"host": "localhost", "port": 5432, "user": "admin"}
 curl -X PUT \
   -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json" \
-  -d '{"host": "new-host", "port": 5433}' \
+  -d '{"host": "new-host"}' \
   http://localhost:3000/config/app1/db
+# Result: {"host": "new-host"}  (port and user are gone)
 ```
 
-### Clone Config (PUT with source=path)
+#### Replace from Another Path
 
 ```
-PUT /config/:path?source=path&path=/source/path
+PUT /config/:path?from=/source/path
 ```
 
-When `source=path` is specified, clones configuration from another path instead of using the request body. Requires `read` permission on the source path and `write` permission on the destination.
+When `from` is specified, replaces configuration with data from another path. Requires `read` on source and `write` on destination.
 
-The `path` parameter can be absolute (`/config/app1/db`) or relative (`app1/db`).
+The `from` parameter can be absolute (`/config/app1/db`) or relative (`app1/db`).
 
-**Example:**
 ```bash
-# Clone app1/db to app2/db
+# Clone app1/db to app2/db (replaces app2/db entirely)
 curl -X PUT \
   -H "Authorization: Bearer $TOKEN" \
-  "http://localhost:3000/config/app2/db?source=path&path=/config/app1/db"
-
-# Using relative path
-curl -X PUT \
-  -H "Authorization: Bearer $TOKEN" \
-  "http://localhost:3000/config/app2/db?source=path&path=app1/db"
+  "http://localhost:3000/config/app2/db?from=/config/app1/db"
 ```
 
 ### Delete Config Subtree

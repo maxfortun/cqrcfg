@@ -83,9 +83,10 @@ async function main() {
   console.log('Endpoints:');
   console.log('  GET    /health        - Health check');
   console.log('  GET    /config/*      - Get config subtree');
-  console.log('  PATCH  /config/*      - Merge update config');
-  console.log('  PUT    /config/*      - Replace config (or clone with ?source=path&path=...)');
+  console.log('  POST   /config/*      - Merge config (preserves missing values)');
+  console.log('  PUT    /config/*      - Replace config (overwrites all values)');
   console.log('  DELETE /config/*      - Delete config subtree');
+  console.log('  (POST/PUT support ?from=... to copy from another path)');
   console.log('  WS     /stream/*      - Subscribe to changes');
 
   // Graceful shutdown
