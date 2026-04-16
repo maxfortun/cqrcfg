@@ -49,6 +49,20 @@ async function checkAuthz(request, reply, requiredAction) {
   return true;
 }
 
+function checkAuthzForPath(user, path, requiredAction) {
+  if (!user || !path) return false;
+
+  const permissions = user.permissions || [];
+
+  return permissions.some((perm) => {
+    if (perm.path !== path && !path.startsWith(perm.path + '/')) {
+      return false;
+    }
+    const actions = perm.actions || [];
+    return actions.includes(requiredAction);
+  });
+}
+
 export default async function configRoutes(fastify) {
   // Common preHandler hooks for all routes
   const commonHooks = [authHook, normalizePathHook];
@@ -145,24 +159,80 @@ export default async function configRoutes(fastify) {
   /**
    * PUT /config/*
    * Fully replace node data
+   *
+   * Default: data from request body
+   * With ?source=path&path=/other/path: clone from another config path
    */
   fastify.put('/*', {
-    preHandler: [...commonHooks, authzHook('write')],
+    preHandler: [authHook, normalizePathHook],
   }, async (request, reply) => {
-    const path = request.configPath;
-    const data = request.body;
+    const destPath = request.configPath;
+    const { source, path: sourcePath } = request.query;
 
-    if (!data || typeof data !== 'object' || Array.isArray(data)) {
-      return reply.code(400).send({
-        error: 'Bad Request',
-        message: 'Request body must be a JSON object',
+    // Check write permission on destination
+    if (!checkAuthzForPath(request.user, destPath, 'write')) {
+      return reply.code(403).send({
+        error: 'Forbidden',
+        message: `Access denied: no write permission for path ${destPath}`,
       });
     }
 
-    const result = await putNode(path, data);
+    let data;
+
+    if (source === 'path') {
+      // Clone from another path
+      if (!sourcePath) {
+        return reply.code(400).send({
+          error: 'Bad Request',
+          message: 'Query parameter "path" is required when source=path',
+        });
+      }
+
+      // Normalize source path
+      const normalizedSource = sourcePath.startsWith('/config')
+        ? sourcePath
+        : `/config${sourcePath.startsWith('/') ? '' : '/'}${sourcePath}`;
+
+      if (normalizedSource === destPath) {
+        return reply.code(400).send({
+          error: 'Bad Request',
+          message: 'Source and destination paths must be different',
+        });
+      }
+
+      // Check read permission on source
+      if (!checkAuthzForPath(request.user, normalizedSource, 'read')) {
+        return reply.code(403).send({
+          error: 'Forbidden',
+          message: `Access denied: no read permission for source path ${normalizedSource}`,
+        });
+      }
+
+      // Get source config
+      data = await getSubtree(normalizedSource);
+
+      if (data === null) {
+        return reply.code(404).send({
+          error: 'Not Found',
+          message: `No configuration found at source path: ${normalizedSource}`,
+        });
+      }
+    } else {
+      // Default: data from body
+      data = request.body;
+
+      if (!data || typeof data !== 'object' || Array.isArray(data)) {
+        return reply.code(400).send({
+          error: 'Bad Request',
+          message: 'Request body must be a JSON object',
+        });
+      }
+    }
+
+    const result = await putNode(destPath, data);
 
     return {
-      path,
+      path: destPath,
       data: result,
       message: 'Configuration replaced successfully',
     };

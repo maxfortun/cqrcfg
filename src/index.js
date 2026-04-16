@@ -84,7 +84,7 @@ async function main() {
   console.log('  GET    /health        - Health check');
   console.log('  GET    /config/*      - Get config subtree');
   console.log('  PATCH  /config/*      - Merge update config');
-  console.log('  PUT    /config/*      - Replace config');
+  console.log('  PUT    /config/*      - Replace config (or clone with ?source=path&path=...)');
   console.log('  DELETE /config/*      - Delete config subtree');
   console.log('  WS     /stream/*      - Subscribe to changes');
 
