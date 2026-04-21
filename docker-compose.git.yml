@@ -35,7 +35,9 @@ services:
       - OIDC_AUDIENCE=${OIDC_AUDIENCE:-}
       - OIDC_CLAIMS_HEADERS=${OIDC_CLAIMS_HEADERS:-}
     volumes:
-      - git_data:/data/git
+      # Mount local dir for persistence testing, or use named volume
+      # GIT_DATA_PATH=./data/git docker compose -f docker-compose.git.yml up -d
+      - ${GIT_DATA_PATH:-git_data}:/data/git
       # Mount SSH keys for remote git access (optional)
       - ${GIT_SSH_KEY_PATH:-/dev/null}:/root/.ssh/id_rsa:ro
       - ${GIT_SSH_KNOWN_HOSTS:-/dev/null}:/root/.ssh/known_hosts:ro

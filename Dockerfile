@@ -14,9 +14,14 @@ FROM node:20-alpine
 
 WORKDIR /app
 
-# Create non-root user
+# Install git (required for git storage backend)
+RUN apk add --no-cache git openssh-client
+
+# Create non-root user and data directory
 RUN addgroup -g 1001 -S cqrcfg && \
-    adduser -S cqrcfg -u 1001 -G cqrcfg
+    adduser -S cqrcfg -u 1001 -G cqrcfg && \
+    mkdir -p /data/git && \
+    chown -R cqrcfg:cqrcfg /data
 
 # Copy package files
 COPY package*.json ./

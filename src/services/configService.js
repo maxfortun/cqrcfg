@@ -105,12 +105,7 @@ export async function listPaths(basePath) {
   const backend = getStorage();
   const paths = await backend.listPaths(basePath);
 
-  if (paths.length === 0) {
-    if (c) c.set(cacheKey, null);
-    return null;
-  }
-
-  // Cache the result
+  // Cache the result (including empty arrays)
   if (c) c.set(cacheKey, paths);
 
   return paths;
@@ -122,10 +117,6 @@ export async function searchPaths(pattern) {
   const backend = getStorage();
   // Pattern is now a glob string, conversion to regex happens in storage layer
   const paths = await backend.searchPaths(pattern);
-
-  if (paths.length === 0) {
-    return null;
-  }
 
   return paths;
 }

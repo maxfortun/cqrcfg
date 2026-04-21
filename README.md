@@ -159,6 +159,9 @@ docker compose -f docker-compose.git.yml up -d
 GIT_ENCRYPTION_SALT=a1b2c3d4e5f60718 \
 GIT_ENCRYPTION_PASSWORD=your-secret-password \
 docker compose -f docker-compose.git.yml up -d
+
+# Mount local directory for persistence testing
+GIT_DATA_PATH=./data/git docker compose -f docker-compose.git.yml up -d
 ```
 
 **Git backend environment variables:**
@@ -166,6 +169,7 @@ docker compose -f docker-compose.git.yml up -d
 |----------|-------------|
 | `GIT_REMOTE_URL` | Remote repository URL (optional; if empty, local-only mode) |
 | `GIT_BRANCH` | Branch to use (default: `main`) |
+| `GIT_DATA_PATH` | Local path to mount for git data (default: named volume `git_data`) |
 | `GIT_SSH_KEY_PATH` | Path to SSH private key for remote access |
 | `GIT_SSH_KNOWN_HOSTS` | Path to known_hosts file |
 | `GIT_ENCRYPTION_SALT` | Hex-encoded 8-byte salt for encryption |

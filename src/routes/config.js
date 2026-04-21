@@ -95,13 +95,6 @@ export default async function configRoutes(fastify) {
         paths = await listPaths(path);
       }
 
-      if (paths === null) {
-        return reply.code(404).send({
-          error: 'Not Found',
-          message: `No configuration found matching: ${path}`,
-        });
-      }
-
       return { keys: paths };
     } else {
       // Check read permission
