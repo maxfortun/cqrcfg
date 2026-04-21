@@ -215,11 +215,14 @@ Apply environment-specific themes using environment variables:
 
 ```bash
 # Use built-in themes: default, dev, int, prod
-UI_ENV=dev docker compose up -d   # Green theme, "DEV" badge
-UI_ENV=int docker compose up -d   # Blue theme, "INT" badge
-UI_ENV=prod docker compose up -d  # Red theme, "PROD" badge
+UI_THEME=./ui/public/themes/dev.css docker compose up -d   # Green theme
+UI_THEME=./ui/public/themes/int.css docker compose up -d   # Blue theme
+UI_THEME=./ui/public/themes/prod.css docker compose up -d  # Red theme
 
-# Or specify custom file paths
+# With custom config (sets environment badge)
+UI_THEME=./ui/public/themes/prod.css UI_CONFIG=./ui/public/config.prod.js docker compose up -d
+
+# Or specify fully custom file paths
 UI_THEME=./my-theme.css UI_CONFIG=./my-config.js docker compose up -d
 ```
 

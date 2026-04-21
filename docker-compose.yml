@@ -55,13 +55,15 @@ services:
       dockerfile: Dockerfile
     ports:
       - "8080:80"
-    # Mount custom theme and config for environment identification
-    # Set UI_THEME and UI_CONFIG env vars, or use UI_ENV shorthand:
-    #   UI_ENV=dev docker compose up -d
-    #   UI_THEME=./my-theme.css UI_CONFIG=./my-config.js docker compose up -d
+    # Mount theme and config for environment identification
+    # Set UI_THEME to a theme file path (default: ./ui/public/themes/default.css)
+    # Set UI_CONFIG to a config file path (default: ./ui/public/config.default.js)
+    # Examples:
+    #   UI_THEME=./ui/public/themes/dev.css docker compose up -d
+    #   UI_THEME=./ui/public/themes/prod.css UI_CONFIG=./my-config.js docker compose up -d
     volumes:
-      - ${UI_THEME:-./ui/public/themes/${UI_ENV:-default}.css}:/usr/share/nginx/html/theme.css:ro
-      - ${UI_CONFIG:-./config.${UI_ENV:-default}.js}:/usr/share/nginx/html/config.js:ro
+      - ${UI_THEME:-./ui/public/themes/default.css}:/usr/share/nginx/html/theme.css:ro
+      - ${UI_CONFIG:-./ui/public/config.default.js}:/usr/share/nginx/html/config.js:ro
     depends_on:
       - cqrcfg
 
