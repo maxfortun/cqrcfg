@@ -22,6 +22,13 @@ export const config = {
         : ['http://localhost:2379'],
       prefix: process.env.ETCD_PREFIX || '/cqrcfg',
     },
+    git: {
+      remoteUrl: process.env.GIT_REMOTE_URL || '',
+      localPath: process.env.GIT_LOCAL_PATH || '/tmp/cqrcfg-git',
+      branch: process.env.GIT_BRANCH || 'main',
+      commitAuthor: process.env.GIT_COMMIT_AUTHOR || 'cqrcfg <cqrcfg@localhost>',
+      pullInterval: parseInt(process.env.GIT_PULL_INTERVAL, 10) || 30000,
+    },
   },
   notifications: {
     type: process.env.NOTIFICATIONS_TYPE || 'websocket',
@@ -76,11 +83,12 @@ export function validateConfig() {
     errors.push('At least one of OIDC_JWKS_URIS or OIDC_ISSUERS is required');
   }
 
-  const validStorage = ['mongodb', 'dynamodb', 'etcd'];
+  const validStorage = ['mongodb', 'dynamodb', 'etcd', 'git'];
   if (!validStorage.includes(config.storage.type)) {
     errors.push(`STORAGE_TYPE must be one of: ${validStorage.join(', ')}`);
   }
 
+  
   const validNotifications = ['websocket', 'kafka', 'amqp'];
   if (!validNotifications.includes(config.notifications.type)) {
     errors.push(`NOTIFICATIONS_TYPE must be one of: ${validNotifications.join(', ')}`);

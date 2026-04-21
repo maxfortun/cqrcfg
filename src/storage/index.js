@@ -2,6 +2,7 @@ import { config } from '../config.js';
 import { MongoDBStorage } from './mongodb.js';
 import { DynamoDBStorage } from './dynamodb.js';
 import { EtcdStorage } from './etcd.js';
+import { GitStorage } from './git.js';
 
 let storage = null;
 
@@ -26,6 +27,15 @@ export function createStorage() {
       return new EtcdStorage({
         hosts: config.storage.etcd.hosts,
         prefix: config.storage.etcd.prefix,
+      });
+
+    case 'git':
+      return new GitStorage({
+        remoteUrl: config.storage.git.remoteUrl,
+        localPath: config.storage.git.localPath,
+        branch: config.storage.git.branch,
+        commitAuthor: config.storage.git.commitAuthor,
+        pullInterval: config.storage.git.pullInterval,
       });
 
     default:

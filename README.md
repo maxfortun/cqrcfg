@@ -231,13 +231,18 @@ UI_THEME=./my-theme.css UI_CONFIG=./my-config.js docker compose up -d
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `STORAGE_TYPE` | `mongodb` | Storage backend: `mongodb`, `dynamodb`, `etcd` |
+| `STORAGE_TYPE` | `mongodb` | Storage backend: `mongodb`, `dynamodb`, `etcd`, `git` |
 | `MONGODB_URI` | `mongodb://localhost:27017` | MongoDB connection string |
 | `MONGODB_DATABASE` | `cqrcfg` | MongoDB database name |
 | `DYNAMODB_TABLE` | `cqrcfg` | DynamoDB table name |
 | `AWS_REGION` | `us-east-1` | AWS region for DynamoDB |
 | `ETCD_HOSTS` | `http://localhost:2379` | Comma-separated etcd hosts |
 | `ETCD_PREFIX` | `/cqrcfg` | Key prefix in etcd |
+| `GIT_REMOTE_URL` | (optional) | Git remote URL; if empty, local-only mode (no pull/push) |
+| `GIT_LOCAL_PATH` | `/tmp/cqrcfg-git` | Local path for cloned repo cache |
+| `GIT_BRANCH` | `main` | Git branch to use |
+| `GIT_COMMIT_AUTHOR` | `cqrcfg <cqrcfg@localhost>` | Author for commits |
+| `GIT_PULL_INTERVAL` | `30000` | Interval between pulls in ms (30s) |
 
 ### Notification Settings
 
