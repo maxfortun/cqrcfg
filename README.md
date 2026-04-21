@@ -137,6 +137,40 @@ docker compose down -v
 - **Mock OIDC**: http://localhost:8888 (token generator UI)
 - **MongoDB**: localhost:27017
 
+### Git Storage Backend
+
+Use `docker-compose.git.yml` for the git storage backend instead of MongoDB:
+
+```bash
+# Local-only mode (no remote, data persisted in volume)
+docker compose -f docker-compose.git.yml up -d
+
+# With remote repository (SSH)
+GIT_REMOTE_URL=git@github.com:org/config-repo.git \
+GIT_SSH_KEY_PATH=~/.ssh/id_rsa \
+GIT_SSH_KNOWN_HOSTS=~/.ssh/known_hosts \
+docker compose -f docker-compose.git.yml up -d
+
+# With remote repository (HTTPS)
+GIT_REMOTE_URL=https://github.com/org/config-repo.git \
+docker compose -f docker-compose.git.yml up -d
+
+# With encryption (AES-256-CBC)
+GIT_ENCRYPTION_SALT=a1b2c3d4e5f60718 \
+GIT_ENCRYPTION_PASSWORD=your-secret-password \
+docker compose -f docker-compose.git.yml up -d
+```
+
+**Git backend environment variables:**
+| Variable | Description |
+|----------|-------------|
+| `GIT_REMOTE_URL` | Remote repository URL (optional; if empty, local-only mode) |
+| `GIT_BRANCH` | Branch to use (default: `main`) |
+| `GIT_SSH_KEY_PATH` | Path to SSH private key for remote access |
+| `GIT_SSH_KNOWN_HOSTS` | Path to known_hosts file |
+| `GIT_ENCRYPTION_SALT` | Hex-encoded 8-byte salt for encryption |
+| `GIT_ENCRYPTION_PASSWORD` | Password for encryption |
+
 ### Getting a Token (Local Development)
 
 1. Open the Mock OIDC token generator: http://localhost:8888

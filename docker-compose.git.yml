@@ -1,0 +1,60 @@
+services:
+  # Mock OIDC server for local development
+  mock-oidc:
+    build:
+      context: ./mock-oidc
+      dockerfile: Dockerfile
+    ports:
+      - "8888:8888"
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://localhost:8888/.well-known/jwks.json').then(r => r.ok ? process.exit(0) : process.exit(1)).catch(() => process.exit(1))"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+      start_period: 5s
+
+  cqrcfg:
+    build: .
+    ports:
+      - "3000:3000"
+    environment:
+      - PORT=3000
+      - HOST=0.0.0.0
+      - STORAGE_TYPE=git
+      - GIT_REMOTE_URL=${GIT_REMOTE_URL:-}
+      - GIT_LOCAL_PATH=/data/git
+      - GIT_BRANCH=${GIT_BRANCH:-main}
+      - GIT_COMMIT_AUTHOR=${GIT_COMMIT_AUTHOR:-cqrcfg <cqrcfg@localhost>}
+      - GIT_PULL_INTERVAL=${GIT_PULL_INTERVAL:-30000}
+      - GIT_ENCRYPTION_SALT=${GIT_ENCRYPTION_SALT:-}
+      - GIT_ENCRYPTION_PASSWORD=${GIT_ENCRYPTION_PASSWORD:-}
+      - NOTIFICATIONS_TYPE=websocket
+      # Use mock OIDC by default, override with env vars for real OIDC
+      - OIDC_JWKS_URIS=${OIDC_JWKS_URIS:-http://mock-oidc:8888/.well-known/jwks.json}
+      - OIDC_ISSUERS=${OIDC_ISSUERS:-}
+      - OIDC_AUDIENCE=${OIDC_AUDIENCE:-}
+      - OIDC_CLAIMS_HEADERS=${OIDC_CLAIMS_HEADERS:-}
+    volumes:
+      - git_data:/data/git
+      # Mount SSH keys for remote git access (optional)
+      - ${GIT_SSH_KEY_PATH:-/dev/null}:/root/.ssh/id_rsa:ro
+      - ${GIT_SSH_KNOWN_HOSTS:-/dev/null}:/root/.ssh/known_hosts:ro
+    depends_on:
+      mock-oidc:
+        condition: service_healthy
+    restart: unless-stopped
+
+  ui:
+    build:
+      context: ./ui
+      dockerfile: Dockerfile
+    ports:
+      - "8080:80"
+    volumes:
+      - ${UI_THEME:-./ui/public/themes/${UI_ENV:-default}.css}:/usr/share/nginx/html/theme.css:ro
+      - ${UI_CONFIG:-./config.${UI_ENV:-default}.js}:/usr/share/nginx/html/config.js:ro
+    depends_on:
+      - cqrcfg
+
+volumes:
+  git_data:
