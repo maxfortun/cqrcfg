@@ -165,15 +165,19 @@ GIT_DATA_PATH=./data/git docker compose -f docker-compose.git.yml up -d
 ```
 
 **Git backend environment variables:**
-| Variable | Description |
-|----------|-------------|
-| `GIT_REMOTE_URL` | Remote repository URL (optional; if empty, local-only mode) |
-| `GIT_BRANCH` | Branch to use (default: `main`) |
-| `GIT_DATA_PATH` | Local path to mount for git data (default: named volume `git_data`) |
-| `GIT_SSH_KEY_PATH` | Path to SSH private key for remote access |
-| `GIT_SSH_KNOWN_HOSTS` | Path to known_hosts file |
-| `GIT_ENCRYPTION_SALT` | Hex-encoded 8-byte salt for encryption |
-| `GIT_ENCRYPTION_PASSWORD` | Password for encryption |
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `GIT_REMOTE_URL` | (empty) | Remote repository URL (if empty, local-only mode) |
+| `GIT_BRANCH` | `main` | Branch to use |
+| `GIT_DATA_PATH` | `git_data` | Local path or named volume to mount for git data |
+| `GIT_USER_NAME` | `cqrcfg` | Git user.name for commits |
+| `GIT_USER_EMAIL` | `cqrcfg@localhost` | Git user.email for commits |
+| `GIT_COMMIT_AUTHOR` | `cqrcfg <cqrcfg@localhost>` | Author string for commits |
+| `GIT_PULL_INTERVAL` | `30000` | Interval between pulls in ms |
+| `GIT_SSH_KEY_PATH` | (none) | Path to SSH private key for remote access |
+| `GIT_SSH_KNOWN_HOSTS` | (none) | Path to known_hosts file |
+| `GIT_ENCRYPTION_SALT` | (none) | Hex-encoded 8-byte salt for encryption |
+| `GIT_ENCRYPTION_PASSWORD` | (none) | Password for encryption (both required to enable) |
 
 ### Getting a Token (Local Development)
 
@@ -282,8 +286,10 @@ UI_THEME=./my-theme.css UI_CONFIG=./my-config.js docker compose up -d
 | `GIT_REMOTE_URL` | (optional) | Git remote URL; if empty, local-only mode (no pull/push) |
 | `GIT_LOCAL_PATH` | `/tmp/cqrcfg-git` | Local path for cloned repo cache |
 | `GIT_BRANCH` | `main` | Git branch to use |
-| `GIT_COMMIT_AUTHOR` | `cqrcfg <cqrcfg@localhost>` | Author for commits |
+| `GIT_COMMIT_AUTHOR` | `cqrcfg <cqrcfg@localhost>` | Author string for commits |
 | `GIT_PULL_INTERVAL` | `30000` | Interval between pulls in ms (30s) |
+| `GIT_USER_NAME` | `cqrcfg` | Git user.name for commits |
+| `GIT_USER_EMAIL` | `cqrcfg@localhost` | Git user.email for commits |
 | `GIT_ENCRYPTION_SALT` | (optional) | Hex-encoded 8-byte salt for AES-256-CBC encryption |
 | `GIT_ENCRYPTION_PASSWORD` | (optional) | Password for encryption; both salt and password required to enable |
 
