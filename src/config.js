@@ -28,6 +28,8 @@ export const config = {
       branch: process.env.GIT_BRANCH || 'main',
       commitAuthor: process.env.GIT_COMMIT_AUTHOR || 'cqrcfg <cqrcfg@localhost>',
       pullInterval: parseInt(process.env.GIT_PULL_INTERVAL, 10) || 30000,
+      userName: process.env.GIT_USER_NAME || 'cqrcfg',
+      userEmail: process.env.GIT_USER_EMAIL || 'cqrcfg@localhost',
       encryption: {
         salt: process.env.GIT_ENCRYPTION_SALT || '',
         password: process.env.GIT_ENCRYPTION_PASSWORD || '',

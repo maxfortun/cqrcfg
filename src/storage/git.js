@@ -15,6 +15,8 @@ export class GitStorage extends StorageInterface {
     this.branch = options.branch || 'main';
     this.commitAuthor = options.commitAuthor || 'cqrcfg <cqrcfg@localhost>';
     this.pullInterval = options.pullInterval || 30000; // 30 seconds default
+    this.userName = options.userName || 'cqrcfg';
+    this.userEmail = options.userEmail || 'cqrcfg@localhost';
 
     // Encryption settings (optional)
     const encryption = options.encryption || {};
@@ -100,6 +102,10 @@ export class GitStorage extends StorageInterface {
           throw err;
         }
       }
+
+      // Configure git identity
+      await this._git(['config', 'user.name', this.userName]);
+      await this._git(['config', 'user.email', this.userEmail]);
 
       this.lastPull = Date.now();
       if (this._hasRemote()) {

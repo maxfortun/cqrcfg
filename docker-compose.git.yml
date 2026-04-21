@@ -25,6 +25,8 @@ services:
       - GIT_LOCAL_PATH=/data/git
       - GIT_BRANCH=${GIT_BRANCH:-main}
       - GIT_COMMIT_AUTHOR=${GIT_COMMIT_AUTHOR:-cqrcfg <cqrcfg@localhost>}
+      - GIT_USER_NAME=${GIT_USER_NAME:-cqrcfg}
+      - GIT_USER_EMAIL=${GIT_USER_EMAIL:-cqrcfg@localhost}
       - GIT_PULL_INTERVAL=${GIT_PULL_INTERVAL:-30000}
       - GIT_ENCRYPTION_SALT=${GIT_ENCRYPTION_SALT:-}
       - GIT_ENCRYPTION_PASSWORD=${GIT_ENCRYPTION_PASSWORD:-}
