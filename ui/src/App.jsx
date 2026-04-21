@@ -3,6 +3,7 @@ import './App.css';
 import { ConfigBrowser } from './components/ConfigBrowser';
 import { ConfigEditor } from './components/ConfigEditor';
 import { TokenInput } from './components/TokenInput';
+import { ThemeToggle } from './components/ThemeToggle';
 import { api } from './api';
 
 // Environment name from runtime config (injected via /config.json or env var)
@@ -182,7 +183,10 @@ function App() {
       <header className="app-header">
         <h1>Config Manager</h1>
         {envName && <span className="env-badge">{envName}</span>}
-        <TokenInput token={token} onTokenChange={handleTokenChange} />
+        <div className="header-controls">
+          <ThemeToggle />
+          <TokenInput token={token} onTokenChange={handleTokenChange} />
+        </div>
       </header>
 
       {error && (
