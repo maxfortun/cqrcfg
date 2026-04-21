@@ -243,6 +243,8 @@ UI_THEME=./my-theme.css UI_CONFIG=./my-config.js docker compose up -d
 | `GIT_BRANCH` | `main` | Git branch to use |
 | `GIT_COMMIT_AUTHOR` | `cqrcfg <cqrcfg@localhost>` | Author for commits |
 | `GIT_PULL_INTERVAL` | `30000` | Interval between pulls in ms (30s) |
+| `GIT_ENCRYPTION_SALT` | (optional) | Hex-encoded 8-byte salt for AES-256-CBC encryption |
+| `GIT_ENCRYPTION_PASSWORD` | (optional) | Password for encryption; both salt and password required to enable |
 
 ### Notification Settings
 

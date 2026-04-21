@@ -2,6 +2,7 @@ import { execFile } from 'child_process';
 import { promisify } from 'util';
 import { mkdir, readFile, writeFile, rm, readdir, stat } from 'fs/promises';
 import { join, dirname } from 'path';
+import { createCipheriv, createDecipheriv, pbkdf2Sync, randomBytes } from 'crypto';
 import { StorageInterface, globToRegex, matchesFilter } from './interface.js';
 
 const execFileAsync = promisify(execFile);
@@ -15,9 +16,54 @@ export class GitStorage extends StorageInterface {
     this.commitAuthor = options.commitAuthor || 'cqrcfg <cqrcfg@localhost>';
     this.pullInterval = options.pullInterval || 30000; // 30 seconds default
 
+    // Encryption settings (optional)
+    const encryption = options.encryption || {};
+    this.encryptionSalt = encryption.salt || '';
+    this.encryptionPassword = encryption.password || '';
+
     // Mutex for git operations
     this.operationQueue = Promise.resolve();
     this.lastPull = 0;
+  }
+
+  _isEncryptionEnabled() {
+    return !!(this.encryptionSalt && this.encryptionPassword);
+  }
+
+  _encrypt(plaintext) {
+    if (!this._isEncryptionEnabled()) return plaintext;
+
+    const salt = Buffer.from(this.encryptionSalt, 'hex');
+    const key = pbkdf2Sync(this.encryptionPassword, salt, 100000, 32, 'sha512');
+    const iv = randomBytes(16);
+    const cipher = createCipheriv('aes-256-cbc', key, iv);
+
+    const encrypted = Buffer.concat([cipher.update(plaintext, 'utf8'), cipher.final()]);
+    const result = Buffer.concat([Buffer.from('Salted__'), salt, iv, encrypted]);
+    return result.toString('base64');
+  }
+
+  _decrypt(ciphertext) {
+    if (!this._isEncryptionEnabled()) return ciphertext;
+
+    try {
+      const data = Buffer.from(ciphertext, 'base64');
+      const prefix = data.subarray(0, 8).toString();
+      if (prefix !== 'Salted__') {
+        return ciphertext;
+      }
+
+      const salt = data.subarray(8, 16);
+      const iv = data.subarray(16, 32);
+      const encrypted = data.subarray(32);
+
+      const key = pbkdf2Sync(this.encryptionPassword, salt, 100000, 32, 'sha512');
+      const decipher = createDecipheriv('aes-256-cbc', key, iv);
+
+      return Buffer.concat([decipher.update(encrypted), decipher.final()]).toString('utf8');
+    } catch {
+      return ciphertext;
+    }
   }
 
   _hasRemote() {
@@ -167,7 +213,8 @@ export class GitStorage extends StorageInterface {
   async _readJsonFile(filePath) {
     try {
       const content = await readFile(filePath, 'utf8');
-      return JSON.parse(content);
+      const decrypted = this._decrypt(content.trim());
+      return JSON.parse(decrypted);
     } catch (err) {
       if (err.code === 'ENOENT') return null;
       throw err;
@@ -176,7 +223,9 @@ export class GitStorage extends StorageInterface {
 
   async _writeJsonFile(filePath, data) {
     await mkdir(dirname(filePath), { recursive: true });
-    await writeFile(filePath, JSON.stringify(data, null, 2) + '\n', 'utf8');
+    const json = JSON.stringify(data, null, 2);
+    const content = this._encrypt(json);
+    await writeFile(filePath, content + '\n', 'utf8');
   }
 
   async _deleteFile(filePath) {

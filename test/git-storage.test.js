@@ -279,3 +279,85 @@ describe('Git Storage (with remote simulation)', async () => {
     assert.strictEqual(result2.data.source, 'storage1');
   });
 });
+
+describe('Git Storage (with encryption)', async () => {
+  let storage;
+  let testDir;
+
+  before(async () => {
+    const { GitStorage } = await import('../src/storage/git.js');
+    testDir = join(tmpdir(), `cqrcfg-git-enc-${randomUUID()}`);
+    storage = new GitStorage({
+      localPath: testDir,
+      branch: 'main',
+      encryption: {
+        salt: 'a1b2c3d4e5f60718',
+        password: 'test-password-123',
+      },
+    });
+    await storage.connect();
+  });
+
+  after(async () => {
+    await storage.close();
+    await rm(testDir, { recursive: true, force: true });
+  });
+
+  it('should encrypt and decrypt data transparently', async () => {
+    const path = '/config/secret/db';
+    const data = { host: 'secret.local', password: 'super-secret' };
+
+    await storage.upsert(path, data);
+    const result = await storage.getByPath(path);
+
+    assert.strictEqual(result.path, path);
+    assert.deepStrictEqual(result.data, data);
+  });
+
+  it('should store encrypted content on disk', async () => {
+    const path = '/config/secret/api';
+    const data = { apiKey: 'my-api-key-12345' };
+
+    await storage.upsert(path, data);
+
+    // Read raw file content
+    const { readFile } = await import('fs/promises');
+    const filePath = join(testDir, 'config/secret/api.json');
+    const rawContent = await readFile(filePath, 'utf8');
+
+    // Should be base64-encoded and start with Salted__ when decoded
+    assert.ok(!rawContent.includes('my-api-key-12345'), 'Raw content should not contain plaintext');
+    const decoded = Buffer.from(rawContent.trim(), 'base64');
+    assert.strictEqual(decoded.subarray(0, 8).toString(), 'Salted__');
+  });
+
+  it('should work with getByPrefix on encrypted data', async () => {
+    await storage.upsert('/config/enc/a', { value: 'a' });
+    await storage.upsert('/config/enc/b', { value: 'b' });
+
+    const results = await storage.getByPrefix('/config/enc');
+    assert.strictEqual(results.length, 2);
+    const values = results.map(r => r.data.value).sort();
+    assert.deepStrictEqual(values, ['a', 'b']);
+  });
+
+  it('should work with searchPaths on encrypted data', async () => {
+    await storage.upsert('/config/search/db', { type: 'database' });
+    await storage.upsert('/config/search/cache', { type: 'cache' });
+
+    const paths = await storage.searchPaths('/config/search/*');
+    assert.ok(paths.includes('/config/search/db'));
+    assert.ok(paths.includes('/config/search/cache'));
+  });
+
+  it('should work with getByPathWithFilter on encrypted data', async () => {
+    await storage.upsert('/config/filter/test', { host: 'localhost', port: 5432 });
+
+    const match = await storage.getByPathWithFilter('/config/filter/test', { host: 'localhost' });
+    assert.ok(match);
+    assert.strictEqual(match.data.port, 5432);
+
+    const noMatch = await storage.getByPathWithFilter('/config/filter/test', { host: 'remote' });
+    assert.strictEqual(noMatch, null);
+  });
+});
