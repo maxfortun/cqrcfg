@@ -217,26 +217,44 @@ OIDC_ISSUERS=https://accounts.google.com
 OIDC_AUDIENCE=your-audience
 ```
 
-### Environment-Specific Themes
+### UI Configuration
 
-Apply environment-specific themes using environment variables:
+The UI is configured via environment variables that generate a runtime config.js at container startup.
+
+**Environment variables:**
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `UI_ENV` | `''` | Environment name displayed as badge (e.g., `dev`, `int`, `prod`) |
+| `UI_API_URL` | `/api` | API base URL (default proxied via nginx; set full URL for direct access) |
+
+**Examples:**
 
 ```bash
-# Use built-in themes: default, dev, int, prod
-UI_THEME=./ui/public/themes/dev.css docker compose up -d   # Green theme
-UI_THEME=./ui/public/themes/int.css docker compose up -d   # Blue theme
-UI_THEME=./ui/public/themes/prod.css docker compose up -d  # Red theme
+# Set environment badge
+UI_ENV=dev docker compose up -d   # DEV badge, green theme
+UI_ENV=int docker compose up -d   # INT badge, blue theme
+UI_ENV=prod docker compose up -d  # PROD badge, red theme
 
-# With custom config (sets environment badge)
-UI_THEME=./ui/public/themes/prod.css UI_CONFIG=./ui/public/config.prod.js docker compose up -d
+# Set custom API URL (for direct API access without nginx proxy)
+UI_API_URL=http://api.example.com:3000 docker compose up -d
 
-# Or specify fully custom file paths
-UI_THEME=./my-theme.css UI_CONFIG=./my-config.js docker compose up -d
+# Combine both
+UI_ENV=prod UI_API_URL=https://config-api.example.com docker compose up -d
 ```
+
+### Environment-Specific Themes
+
+The UI includes light and dark themes for each environment. The theme toggle cycles between Light, Dark, and Auto (system preference).
+
+**Built-in themes:**
+- `light.css`, `dark.css` - Default (no env)
+- `dev-light.css`, `dev-dark.css` - Development (green accent)
+- `int-light.css`, `int-dark.css` - Integration (blue accent)
+- `prod-light.css`, `prod-dark.css` - Production (red accent)
 
 **To create a custom theme:**
 
-1. Create a theme CSS file (copy from `ui/public/themes/default.css`):
+1. Create a theme CSS file (copy from `ui/public/themes/dark.css`):
    ```css
    :root {
      --bg-primary: #1a1a2e;
@@ -249,6 +267,7 @@ UI_THEME=./my-theme.css UI_CONFIG=./my-config.js docker compose up -d
 2. Create a config.js file:
    ```javascript
    window.__CQRCFG_ENV__ = 'my-env';
+   window.__CQRCFG_API_URL__ = '/api';  // or 'http://api.example.com'
    ```
 
 3. Start with custom paths:

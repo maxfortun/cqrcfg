@@ -1,4 +1,4 @@
-const API_BASE = '/api';
+const API_BASE = window.__CQRCFG_API_URL__ || '/api';
 
 async function handleResponse(response) {
   if (!response.ok) {
