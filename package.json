@@ -41,8 +41,8 @@
   },
   "optionalDependencies": {
     "mongodb": "^6.3.0",
-    "@aws-sdk/client-dynamodb": "^3.500.0",
-    "@aws-sdk/lib-dynamodb": "^3.500.0",
+    "@aws-sdk/client-dynamodb": "~3.540.0",
+    "@aws-sdk/lib-dynamodb": "~3.540.0",
     "etcd3": "^1.1.2",
     "kafkajs": "^2.2.4",
     "amqplib": "^0.10.3"
