@@ -58,6 +58,8 @@ services:
     environment:
       - UI_ENV=${UI_ENV:-}
       - UI_API_URL=${UI_API_URL:-/api}
+      - UI_AUTH_HEADER=${UI_AUTH_HEADER:-}
+      - UI_AUTH_PATTERN=${UI_AUTH_PATTERN:-}
     depends_on:
       - cqrcfg
 

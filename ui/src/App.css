@@ -72,6 +72,15 @@ body {
   letter-spacing: 0.05em;
 }
 
+.proxy-auth-badge {
+  padding: 0.25rem 0.75rem;
+  background: var(--success);
+  color: #fff;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
 /* Token Input */
 .token-input {
   display: flex;

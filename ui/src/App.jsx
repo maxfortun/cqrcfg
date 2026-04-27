@@ -4,7 +4,7 @@ import { ConfigBrowser } from './components/ConfigBrowser';
 import { ConfigEditor } from './components/ConfigEditor';
 import { TokenInput } from './components/TokenInput';
 import { ThemeToggle } from './components/ThemeToggle';
-import { api } from './api';
+import { api, isProxyAuthMode } from './api';
 
 // Environment name from runtime config (injected via /config.json or env var)
 const envName = window.__CQRCFG_ENV__ || '';
@@ -38,7 +38,11 @@ function hasWritePermission(permissions, path) {
 }
 
 function App() {
-  const [token, setToken] = useState(localStorage.getItem('cqrcfg_token') || '');
+  const [token, setToken] = useState(() => {
+    // In proxy auth mode, start with empty token (will be fetched or assumed present)
+    if (isProxyAuthMode) return '__PROXY_AUTH__';
+    return localStorage.getItem('cqrcfg_token') || '';
+  });
   const [currentPath, setCurrentPath] = useState('/config');
   const [paths, setPaths] = useState([]);
   const [selectedPath, setSelectedPath] = useState(null);
@@ -47,7 +51,11 @@ function App() {
   const [loading, setLoading] = useState(false);
 
   // Parse permissions from JWT
+  // In proxy auth mode, assume full permissions (server enforces actual permissions)
   const permissions = useMemo(() => {
+    if (isProxyAuthMode) {
+      return [{ path: '/config', actions: ['read', 'write', 'list'] }];
+    }
     const payload = parseJwtPayload(token);
     return payload?.config_permissions || [];
   }, [token]);
@@ -185,7 +193,12 @@ function App() {
         {envName && <span className="env-badge">{envName}</span>}
         <div className="header-controls">
           <ThemeToggle />
-          <TokenInput token={token} onTokenChange={handleTokenChange} />
+          {!isProxyAuthMode && (
+            <TokenInput token={token} onTokenChange={handleTokenChange} />
+          )}
+          {isProxyAuthMode && (
+            <span className="proxy-auth-badge">Proxy Auth</span>
+          )}
         </div>
       </header>
 

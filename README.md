@@ -226,6 +226,8 @@ The UI is configured via environment variables that generate a runtime config.js
 |----------|---------|-------------|
 | `UI_ENV` | `''` | Environment name displayed as badge (e.g., `dev`, `int`, `prod`) |
 | `UI_API_URL` | `/api` | API base URL (default proxied via nginx; set full URL for direct access) |
+| `UI_AUTH_HEADER` | `''` | HTTP header containing auth token (enables proxy auth mode) |
+| `UI_AUTH_PATTERN` | `''` | Regex pattern to extract token from header (capture group 1 used; default strips `Bearer ` prefix) |
 
 **Examples:**
 
@@ -241,6 +243,26 @@ UI_API_URL=http://api.example.com:3000 docker compose up -d
 # Combine both
 UI_ENV=prod UI_API_URL=https://config-api.example.com docker compose up -d
 ```
+
+### Proxy Authentication Mode
+
+When running behind a reverse proxy that handles authentication (e.g., OAuth2 Proxy, Authelia), set `UI_AUTH_HEADER` to enable proxy auth mode:
+
+```bash
+# Proxy sets X-Auth-Token header with the JWT
+UI_AUTH_HEADER=X-Auth-Token docker compose up -d
+
+# Proxy sets Authorization header with "Bearer <token>"
+UI_AUTH_HEADER=Authorization docker compose up -d
+
+# Custom pattern to extract token (e.g., from "Token <value>")
+UI_AUTH_HEADER=Authorization UI_AUTH_PATTERN="^Token\\s+(.+)$" docker compose up -d
+```
+
+In proxy auth mode:
+- Token input controls are hidden (shows "Proxy Auth" badge instead)
+- API requests don't include Authorization header (proxy adds it)
+- UI assumes full permissions (server enforces actual permissions)
 
 ### Environment-Specific Themes
 
