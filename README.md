@@ -228,6 +228,8 @@ The UI is configured via environment variables that generate a runtime config.js
 | `UI_API_URL` | `/api` | API base URL (default proxied via nginx; set full URL for direct access) |
 | `UI_AUTH_HEADER` | `''` | HTTP header containing auth token (enables proxy auth mode) |
 | `UI_AUTH_PATTERN` | `''` | Regex pattern to extract token from header (capture group 1 used; default strips `Bearer ` prefix) |
+| `UI_NAME_CLAIM` | `sub` | JWT claim to use for display name |
+| `UI_USERNAME_CLAIM` | `sub` | JWT claim to use for username (shown on hover if different from name) |
 
 **Examples:**
 

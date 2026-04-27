@@ -6,8 +6,10 @@ import { TokenInput } from './components/TokenInput';
 import { ThemeToggle } from './components/ThemeToggle';
 import { api, isProxyAuthMode } from './api';
 
-// Environment name from runtime config (injected via /config.json or env var)
+// Runtime config
 const envName = window.__CQRCFG_ENV__ || '';
+const nameClaim = window.__CQRCFG_NAME_CLAIM__ || 'sub';
+const usernameClaim = window.__CQRCFG_USERNAME_CLAIM__ || 'sub';
 
 // Parse JWT payload (without verification - server does that)
 function parseJwtPayload(token) {
@@ -50,15 +52,28 @@ function App() {
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(false);
 
+  // Parse JWT payload
+  const jwtPayload = useMemo(() => {
+    if (isProxyAuthMode) return null;
+    return parseJwtPayload(token);
+  }, [token]);
+
   // Parse permissions from JWT
   // In proxy auth mode, assume full permissions (server enforces actual permissions)
   const permissions = useMemo(() => {
     if (isProxyAuthMode) {
       return [{ path: '/config', actions: ['read', 'write', 'list'] }];
     }
-    const payload = parseJwtPayload(token);
-    return payload?.config_permissions || [];
-  }, [token]);
+    return jwtPayload?.config_permissions || [];
+  }, [jwtPayload]);
+
+  // Get user display info from JWT claims
+  const userInfo = useMemo(() => {
+    if (!jwtPayload) return null;
+    const name = jwtPayload[nameClaim] || jwtPayload.sub || '';
+    const username = jwtPayload[usernameClaim] || jwtPayload.sub || '';
+    return { name, username };
+  }, [jwtPayload]);
 
   // Check write permission for current path context
   const canWriteCurrentPath = useMemo(() => {
@@ -193,6 +208,11 @@ function App() {
         {envName && <span className="env-badge">{envName}</span>}
         <div className="header-controls">
           <ThemeToggle />
+          {userInfo && (
+            <span className="user-info" title={userInfo.username !== userInfo.name ? userInfo.username : ''}>
+              {userInfo.name}
+            </span>
+          )}
           {!isProxyAuthMode && (
             <TokenInput token={token} onTokenChange={handleTokenChange} />
           )}

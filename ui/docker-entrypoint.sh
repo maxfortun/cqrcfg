@@ -7,6 +7,8 @@ window.__CQRCFG_ENV__ = '${UI_ENV:-}';
 window.__CQRCFG_API_URL__ = '${UI_API_URL:-/api}';
 window.__CQRCFG_AUTH_HEADER__ = '${UI_AUTH_HEADER:-}';
 window.__CQRCFG_AUTH_PATTERN__ = '${UI_AUTH_PATTERN:-}';
+window.__CQRCFG_NAME_CLAIM__ = '${UI_NAME_CLAIM:-sub}';
+window.__CQRCFG_USERNAME_CLAIM__ = '${UI_USERNAME_CLAIM:-sub}';
 EOF
 
 exec "$@"

@@ -81,6 +81,15 @@ body {
   font-weight: 600;
 }
 
+.user-info {
+  padding: 0.25rem 0.75rem;
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
+  border-radius: 4px;
+  font-size: 0.875rem;
+  cursor: default;
+}
+
 /* Token Input */
 .token-input {
   display: flex;

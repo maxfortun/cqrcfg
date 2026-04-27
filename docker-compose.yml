@@ -60,6 +60,8 @@ services:
       - UI_API_URL=${UI_API_URL:-/api}
       - UI_AUTH_HEADER=${UI_AUTH_HEADER:-}
       - UI_AUTH_PATTERN=${UI_AUTH_PATTERN:-}
+      - UI_NAME_CLAIM=${UI_NAME_CLAIM:-sub}
+      - UI_USERNAME_CLAIM=${UI_USERNAME_CLAIM:-sub}
     depends_on:
       - cqrcfg
 
