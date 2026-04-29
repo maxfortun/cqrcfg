@@ -7,6 +7,7 @@
     "dev": "vite",
     "build": "vite build",
     "start": "node server.js",
+    "serve": "PORT=8080 node server.js",
     "lint": "eslint .",
     "preview": "vite preview"
   },
