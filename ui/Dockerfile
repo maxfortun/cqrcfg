@@ -9,20 +9,25 @@ RUN npm install
 COPY . .
 RUN npm run build
 
-# Production stage with nginx
-FROM nginx:alpine
+# Production stage with Fastify
+FROM node:20-alpine
 
-# Copy built assets
-COPY --from=builder /app/dist /usr/share/nginx/html
+WORKDIR /app
 
-# Copy nginx config for SPA routing and API proxy
-COPY nginx.conf /etc/nginx/conf.d/default.conf
+# Copy package files and install production dependencies
+COPY package*.json ./
+RUN npm install --omit=dev
 
-# Copy entrypoint script for runtime config generation
-COPY docker-entrypoint.sh /docker-entrypoint.sh
-RUN chmod +x /docker-entrypoint.sh
+# Copy built assets and server
+COPY --from=builder /app/dist ./dist
+COPY server.js ./
+
+# Environment defaults
+ENV NODE_ENV=production \
+    PORT=80 \
+    HOST=0.0.0.0 \
+    API_URL=http://cqrcfg:3000
 
 EXPOSE 80
 
-ENTRYPOINT ["/docker-entrypoint.sh"]
-CMD ["nginx", "-g", "daemon off;"]
+CMD ["node", "server.js"]
