@@ -102,7 +102,9 @@ export function ConfigBrowser({
   };
 
   const handleItemClick = (path) => {
-    const hasChildren = paths.some((p) => p !== path && p.startsWith(path + '/'));
+    const hasChildren = paths.some(
+      (p) => p !== path && p.startsWith(path + '/'),
+    );
     if (hasChildren) {
       onNavigateTo(path);
     } else {
@@ -115,27 +117,36 @@ export function ConfigBrowser({
   };
 
   // Determine which paths to display
-  const displayPaths = searchResults !== null ? searchResults : immediateChildren;
+  const displayPaths =
+    searchResults !== null ? searchResults : immediateChildren;
   const isShowingSearchResults = searchResults !== null;
 
   return (
     <div className="config-browser">
       <div className="browser-header">
         <div className="path-breadcrumb">
-          {currentPath.split('/').filter(Boolean).map((segment, index, arr) => {
-            const path = '/' + arr.slice(0, index + 1).join('/');
-            return (
-              <span key={path}>
-                <button
-                  className="breadcrumb-link"
-                  onClick={() => { onNavigateTo(path); clearSearch(); }}
-                >
-                  {segment}
-                </button>
-                {index < arr.length - 1 && <span className="breadcrumb-sep">/</span>}
-              </span>
-            );
-          })}
+          {currentPath
+            .split('/')
+            .filter(Boolean)
+            .map((segment, index, arr) => {
+              const path = '/' + arr.slice(0, index + 1).join('/');
+              return (
+                <span key={path}>
+                  <button
+                    className="breadcrumb-link"
+                    onClick={() => {
+                      onNavigateTo(path);
+                      clearSearch();
+                    }}
+                  >
+                    {segment}
+                  </button>
+                  {index < arr.length - 1 && (
+                    <span className="breadcrumb-sep">/</span>
+                  )}
+                </span>
+              );
+            })}
         </div>
       </div>
 
@@ -161,7 +172,10 @@ export function ConfigBrowser({
 
       <div className="browser-toolbar">
         <button
-          onClick={() => { onNavigateUp(); clearSearch(); }}
+          onClick={() => {
+            onNavigateUp();
+            clearSearch();
+          }}
           disabled={currentPath === '/config'}
           title="Go up"
         >
@@ -182,32 +196,47 @@ export function ConfigBrowser({
       <ul className="path-list">
         {displayPaths.length === 0 && (
           <li className="empty-message">
-            {isShowingSearchResults ? 'No matching configurations found' : 'No configurations found'}
+            {isShowingSearchResults
+              ? 'No matching configurations found'
+              : 'No configurations found'}
           </li>
         )}
         {displayPaths.map((path) => {
-          const hasChildren = paths.some((p) => p !== path && p.startsWith(path + '/'));
+          const hasChildren = paths.some(
+            (p) => p !== path && p.startsWith(path + '/'),
+          );
           const isExact = paths.includes(path);
 
           return (
             <li
               key={path}
               className={`path-item ${selectedPath === path ? 'selected' : ''} ${hasChildren ? 'has-children' : ''}`}
-              onClick={() => isShowingSearchResults ? onSelectPath(path) : handleItemClick(path)}
+              onClick={() =>
+                isShowingSearchResults
+                  ? onSelectPath(path)
+                  : handleItemClick(path)
+              }
               onDoubleClick={() => handleItemDoubleClick(path)}
             >
-              <span className="path-icon">{hasChildren && !isShowingSearchResults ? '/' : ''}</span>
+              <span className="path-icon">
+                {hasChildren && !isShowingSearchResults ? '/' : ''}
+              </span>
               <span className="path-name">
                 {isShowingSearchResults ? path : getDisplayName(path)}
               </span>
-              {isExact && !isShowingSearchResults && <span className="path-badge">value</span>}
+              {isExact && !isShowingSearchResults && (
+                <span className="path-badge">value</span>
+              )}
             </li>
           );
         })}
       </ul>
 
       {showCreateModal && (
-        <div className="modal-overlay" onClick={() => setShowCreateModal(false)}>
+        <div
+          className="modal-overlay"
+          onClick={() => setShowCreateModal(false)}
+        >
           <div className="modal" onClick={(e) => e.stopPropagation()}>
             <h3>Create New Configuration</h3>
             <form onSubmit={handleCreate}>

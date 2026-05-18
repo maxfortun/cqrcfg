@@ -92,41 +92,47 @@ function App() {
     setError(null);
   };
 
-  const loadPaths = useCallback(async (path) => {
-    if (!token) return;
+  const loadPaths = useCallback(
+    async (path) => {
+      if (!token) return;
 
-    setLoading(true);
-    setError(null);
+      setLoading(true);
+      setError(null);
 
-    try {
-      const result = await api.listPaths(path, token);
-      setPaths(result.keys || []);
-      setCurrentPath(path);
-    } catch (err) {
-      setError(err.message);
-      setPaths([]);
-    } finally {
-      setLoading(false);
-    }
-  }, [token]);
+      try {
+        const result = await api.listPaths(path, token);
+        setPaths(result.keys || []);
+        setCurrentPath(path);
+      } catch (err) {
+        setError(err.message);
+        setPaths([]);
+      } finally {
+        setLoading(false);
+      }
+    },
+    [token],
+  );
 
-  const loadConfig = useCallback(async (path) => {
-    if (!token) return;
+  const loadConfig = useCallback(
+    async (path) => {
+      if (!token) return;
 
-    setLoading(true);
-    setError(null);
+      setLoading(true);
+      setError(null);
 
-    try {
-      const result = await api.getConfig(path, token);
-      setConfigData(result);
-      setSelectedPath(path);
-    } catch (err) {
-      setError(err.message);
-      setConfigData(null);
-    } finally {
-      setLoading(false);
-    }
-  }, [token]);
+      try {
+        const result = await api.getConfig(path, token);
+        setConfigData(result);
+        setSelectedPath(path);
+      } catch (err) {
+        setError(err.message);
+        setConfigData(null);
+      } finally {
+        setLoading(false);
+      }
+    },
+    [token],
+  );
 
   const saveConfig = async (path, data) => {
     if (!token) return;
@@ -209,7 +215,12 @@ function App() {
         <div className="header-controls">
           <ThemeToggle />
           {userInfo && (
-            <span className="user-info" title={userInfo.username !== userInfo.name ? userInfo.username : ''}>
+            <span
+              className="user-info"
+              title={
+                userInfo.username !== userInfo.name ? userInfo.username : ''
+              }
+            >
               {userInfo.name}
             </span>
           )}

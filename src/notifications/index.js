@@ -40,7 +40,9 @@ export async function initNotifications() {
 
 export function getNotificationBroker() {
   if (!broker) {
-    throw new Error('Notifications not initialized. Call initNotifications() first.');
+    throw new Error(
+      'Notifications not initialized. Call initNotifications() first.',
+    );
   }
   return broker;
 }

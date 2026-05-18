@@ -1,6 +1,13 @@
 import { useState, useEffect } from 'react';
 
-export function ConfigEditor({ path, data, onSave, onDelete, onClose, canWrite }) {
+export function ConfigEditor({
+  path,
+  data,
+  onSave,
+  onDelete,
+  onClose,
+  canWrite,
+}) {
   const [editMode, setEditMode] = useState('form'); // 'form' or 'json'
   const [jsonText, setJsonText] = useState('');
   const [formData, setFormData] = useState({});
@@ -82,13 +89,22 @@ export function ConfigEditor({ path, data, onSave, onDelete, onClose, canWrite }
       <div key={key} className="form-field">
         <label>
           <span className="field-key">{key}</span>
-          <span className="field-type">{isComplex ? (Array.isArray(value) ? 'array' : 'object') : valueType}</span>
+          <span className="field-type">
+            {isComplex
+              ? Array.isArray(value)
+                ? 'array'
+                : 'object'
+              : valueType}
+          </span>
         </label>
         {isComplex ? (
           <textarea
             value={JSON.stringify(value, null, 2)}
             onChange={(e) => handleFormFieldChange(key, e.target.value)}
-            rows={Math.min(10, JSON.stringify(value, null, 2).split('\n').length + 1)}
+            rows={Math.min(
+              10,
+              JSON.stringify(value, null, 2).split('\n').length + 1,
+            )}
             disabled={!canWrite}
           />
         ) : valueType === 'boolean' ? (
@@ -156,11 +172,13 @@ export function ConfigEditor({ path, data, onSave, onDelete, onClose, canWrite }
         {editMode === 'form' ? (
           <div className="form-editor">
             {Object.entries(formData).map(([key, value]) =>
-              renderFormField(key, value)
+              renderFormField(key, value),
             )}
             {Object.keys(formData).length === 0 && (
               <p className="empty-config">
-                {canWrite ? 'No fields. Click "Add Field" to add one.' : 'No fields.'}
+                {canWrite
+                  ? 'No fields. Click "Add Field" to add one.'
+                  : 'No fields.'}
               </p>
             )}
             <button

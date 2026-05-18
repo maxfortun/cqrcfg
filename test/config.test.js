@@ -2,7 +2,13 @@ import { describe, it, before, after, beforeEach } from 'node:test';
 import assert from 'node:assert';
 import Fastify from 'fastify';
 import websocket from '@fastify/websocket';
-import { initTestKeys, createTestToken, startJwksServer, stopJwksServer, cleanupMongo } from './setup.js';
+import {
+  initTestKeys,
+  createTestToken,
+  startJwksServer,
+  stopJwksServer,
+  cleanupMongo,
+} from './setup.js';
 
 // Set environment before importing app modules
 const MONGO_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017';
@@ -25,8 +31,10 @@ describe('Config API', async () => {
     process.env.OIDC_JWKS_URIS = jwksUri;
 
     // Import modules after setting env
-    const { initStorage, closeStorage } = await import('../src/storage/index.js');
-    const { initNotifications, closeNotifications } = await import('../src/notifications/index.js');
+    const { initStorage, closeStorage } =
+      await import('../src/storage/index.js');
+    const { initNotifications, closeNotifications } =
+      await import('../src/notifications/index.js');
     const configRoutes = (await import('../src/routes/config.js')).default;
 
     // Initialize
@@ -41,9 +49,7 @@ describe('Config API', async () => {
     // Create test token
     token = await createTestToken({
       sub: 'test-user',
-      config_permissions: [
-        { path: '/config', actions: ['read', 'write'] },
-      ],
+      config_permissions: [{ path: '/config', actions: ['read', 'write'] }],
     });
   });
 
@@ -52,7 +58,8 @@ describe('Config API', async () => {
     await stopJwksServer();
 
     const { closeStorage } = await import('../src/storage/index.js');
-    const { closeNotifications } = await import('../src/notifications/index.js');
+    const { closeNotifications } =
+      await import('../src/notifications/index.js');
     await closeNotifications();
     await closeStorage();
   });
@@ -289,9 +296,7 @@ describe('Config API', async () => {
     // Token with only read/write, no list
     const noListToken = await createTestToken({
       sub: 'no-list-user',
-      config_permissions: [
-        { path: '/config', actions: ['read', 'write'] },
-      ],
+      config_permissions: [{ path: '/config', actions: ['read', 'write'] }],
     });
 
     const response = await fastify.inject({
@@ -306,9 +311,7 @@ describe('Config API', async () => {
   it('should return 404 for list on empty path', async () => {
     const listToken = await createTestToken({
       sub: 'list-user',
-      config_permissions: [
-        { path: '/config', actions: ['list'] },
-      ],
+      config_permissions: [{ path: '/config', actions: ['list'] }],
     });
 
     const response = await fastify.inject({
@@ -332,19 +335,28 @@ describe('Config API', async () => {
     await fastify.inject({
       method: 'PUT',
       url: '/config/app1/db',
-      headers: { Authorization: `Bearer ${listToken}`, 'Content-Type': 'application/json' },
+      headers: {
+        Authorization: `Bearer ${listToken}`,
+        'Content-Type': 'application/json',
+      },
       payload: { host: 'db1' },
     });
     await fastify.inject({
       method: 'PUT',
       url: '/config/app2/db',
-      headers: { Authorization: `Bearer ${listToken}`, 'Content-Type': 'application/json' },
+      headers: {
+        Authorization: `Bearer ${listToken}`,
+        'Content-Type': 'application/json',
+      },
       payload: { host: 'db2' },
     });
     await fastify.inject({
       method: 'PUT',
       url: '/config/app1/cache',
-      headers: { Authorization: `Bearer ${listToken}`, 'Content-Type': 'application/json' },
+      headers: {
+        Authorization: `Bearer ${listToken}`,
+        'Content-Type': 'application/json',
+      },
       payload: { host: 'cache1' },
     });
 
@@ -375,13 +387,19 @@ describe('Config API', async () => {
     await fastify.inject({
       method: 'PUT',
       url: '/config/team1/app1/db',
-      headers: { Authorization: `Bearer ${listToken}`, 'Content-Type': 'application/json' },
+      headers: {
+        Authorization: `Bearer ${listToken}`,
+        'Content-Type': 'application/json',
+      },
       payload: { host: 'db1' },
     });
     await fastify.inject({
       method: 'PUT',
       url: '/config/team2/app1/db',
-      headers: { Authorization: `Bearer ${listToken}`, 'Content-Type': 'application/json' },
+      headers: {
+        Authorization: `Bearer ${listToken}`,
+        'Content-Type': 'application/json',
+      },
       payload: { host: 'db2' },
     });
 
@@ -420,7 +438,8 @@ describe('Authorization', async () => {
   after(async () => {
     await fastify.close();
     const { closeStorage } = await import('../src/storage/index.js');
-    const { closeNotifications } = await import('../src/notifications/index.js');
+    const { closeNotifications } =
+      await import('../src/notifications/index.js');
     await closeNotifications();
     await closeStorage();
   });
@@ -431,16 +450,12 @@ describe('Authorization', async () => {
 
   it('should allow read with read permission', async () => {
     const readOnlyToken = await createTestToken({
-      config_permissions: [
-        { path: '/config/app1', actions: ['read'] },
-      ],
+      config_permissions: [{ path: '/config/app1', actions: ['read'] }],
     });
 
     // First create some data with a full-access token
     const fullToken = await createTestToken({
-      config_permissions: [
-        { path: '/config', actions: ['read', 'write'] },
-      ],
+      config_permissions: [{ path: '/config', actions: ['read', 'write'] }],
     });
 
     await fastify.inject({
@@ -465,9 +480,7 @@ describe('Authorization', async () => {
 
   it('should deny write with read-only permission', async () => {
     const readOnlyToken = await createTestToken({
-      config_permissions: [
-        { path: '/config/app1', actions: ['read'] },
-      ],
+      config_permissions: [{ path: '/config/app1', actions: ['read'] }],
     });
 
     const response = await fastify.inject({

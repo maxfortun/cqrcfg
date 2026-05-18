@@ -2,7 +2,12 @@ import { execFile } from 'child_process';
 import { promisify } from 'util';
 import { mkdir, readFile, writeFile, rm, readdir, stat } from 'fs/promises';
 import { join, dirname } from 'path';
-import { createCipheriv, createDecipheriv, pbkdf2Sync, randomBytes } from 'crypto';
+import {
+  createCipheriv,
+  createDecipheriv,
+  pbkdf2Sync,
+  randomBytes,
+} from 'crypto';
 import { StorageInterface, globToRegex, matchesFilter } from './interface.js';
 
 const execFileAsync = promisify(execFile);
@@ -62,8 +67,16 @@ export class GitStorage extends StorageInterface {
     const iv = randomBytes(16);
     const cipher = createCipheriv('aes-256-cbc', key, iv);
 
-    const encrypted = Buffer.concat([cipher.update(plaintext, 'utf8'), cipher.final()]);
-    const result = Buffer.concat([Buffer.from('Salted__'), salt, iv, encrypted]);
+    const encrypted = Buffer.concat([
+      cipher.update(plaintext, 'utf8'),
+      cipher.final(),
+    ]);
+    const result = Buffer.concat([
+      Buffer.from('Salted__'),
+      salt,
+      iv,
+      encrypted,
+    ]);
     return result.toString('base64');
   }
 
@@ -81,10 +94,19 @@ export class GitStorage extends StorageInterface {
       const iv = data.subarray(16, 32);
       const encrypted = data.subarray(32);
 
-      const key = pbkdf2Sync(this.encryptionPassword, salt, 100000, 32, 'sha512');
+      const key = pbkdf2Sync(
+        this.encryptionPassword,
+        salt,
+        100000,
+        32,
+        'sha512',
+      );
       const decipher = createDecipheriv('aes-256-cbc', key, iv);
 
-      return Buffer.concat([decipher.update(encrypted), decipher.final()]).toString('utf8');
+      return Buffer.concat([
+        decipher.update(encrypted),
+        decipher.final(),
+      ]).toString('utf8');
     } catch {
       return ciphertext;
     }
@@ -109,7 +131,9 @@ export class GitStorage extends StorageInterface {
           } catch (fetchErr) {
             if (fetchErr.message.includes("couldn't find remote ref")) {
               await this._git(['checkout', '-b', this.branch]).catch(() => {});
-              console.log(`Remote branch ${this.branch} not found, using local branch`);
+              console.log(
+                `Remote branch ${this.branch} not found, using local branch`,
+              );
             } else {
               throw fetchErr;
             }
@@ -119,14 +143,22 @@ export class GitStorage extends StorageInterface {
         if (err.code === 'ENOENT') {
           if (this._hasRemote()) {
             try {
-              await this._gitRaw(['clone', '--branch', this.branch, this.remoteUrl, this.localPath]);
+              await this._gitRaw([
+                'clone',
+                '--branch',
+                this.branch,
+                this.remoteUrl,
+                this.localPath,
+              ]);
               console.log(`Cloned git repo from ${this.remoteUrl}`);
             } catch (cloneErr) {
               // Remote repo may be empty — clean up failed clone, then retry without branch
               await rm(this.localPath, { recursive: true, force: true });
               await this._gitRaw(['clone', this.remoteUrl, this.localPath]);
               await this._git(['checkout', '-b', this.branch]);
-              console.log(`Cloned empty repo from ${this.remoteUrl}, created branch ${this.branch}`);
+              console.log(
+                `Cloned empty repo from ${this.remoteUrl}, created branch ${this.branch}`,
+              );
             }
           } else {
             // Initialize local repo without remote
@@ -148,7 +180,9 @@ export class GitStorage extends StorageInterface {
       if (this._hasRemote()) {
         console.log(`Connected to git storage: ${this.remoteUrl}`);
       } else {
-        console.log(`Connected to local git storage: ${this.localPath} (no remote)`);
+        console.log(
+          `Connected to local git storage: ${this.localPath} (no remote)`,
+        );
       }
     });
   }
@@ -166,7 +200,9 @@ export class GitStorage extends StorageInterface {
       });
       return stdout.trim();
     } catch (err) {
-      throw new Error(`Git command failed: git ${args.join(' ')}\n${err.stderr || err.message}`);
+      throw new Error(
+        `Git command failed: git ${args.join(' ')}\n${err.stderr || err.message}`,
+      );
     }
   }
 
@@ -177,13 +213,19 @@ export class GitStorage extends StorageInterface {
       });
       return stdout.trim();
     } catch (err) {
-      throw new Error(`Git command failed: git ${args.join(' ')}\n${err.stderr || err.message}`);
+      throw new Error(
+        `Git command failed: git ${args.join(' ')}\n${err.stderr || err.message}`,
+      );
     }
   }
 
   // Serialize git operations to avoid conflicts
   async _withLock(fn) {
-    const ticket = this.operationQueue.then(() => fn()).catch(err => { throw err; });
+    const ticket = this.operationQueue
+      .then(() => fn())
+      .catch((err) => {
+        throw err;
+      });
     this.operationQueue = ticket.catch(() => {});
     return ticket;
   }
@@ -223,7 +265,13 @@ export class GitStorage extends StorageInterface {
     }
 
     // Commit
-    await this._git(['commit', '-m', message, '--author', this._resolveAuthor(author)]);
+    await this._git([
+      'commit',
+      '-m',
+      message,
+      '--author',
+      this._resolveAuthor(author),
+    ]);
 
     // Skip push if no remote configured
     if (!this._hasRemote()) return;
@@ -247,7 +295,9 @@ export class GitStorage extends StorageInterface {
 
   _pathToFile(configPath) {
     // /config/app1/db -> config/app1/db.json
-    const relativePath = configPath.startsWith('/') ? configPath.slice(1) : configPath;
+    const relativePath = configPath.startsWith('/')
+      ? configPath.slice(1)
+      : configPath;
     return join(this.localPath, relativePath + '.json');
   }
 
@@ -292,7 +342,7 @@ export class GitStorage extends StorageInterface {
         const fullPath = join(dir, entry.name);
         if (entry.isDirectory()) {
           if (entry.name !== '.git') {
-            files.push(...await this._getAllFiles(fullPath, baseDir));
+            files.push(...(await this._getAllFiles(fullPath, baseDir)));
           }
         } else if (entry.name.endsWith('.json')) {
           files.push(fullPath);
@@ -316,7 +366,10 @@ export class GitStorage extends StorageInterface {
         if (!configPath) continue;
 
         // Check prefix match (boundary-safe)
-        if (configPath !== pathPrefix && !configPath.startsWith(pathPrefix + '/')) {
+        if (
+          configPath !== pathPrefix &&
+          !configPath.startsWith(pathPrefix + '/')
+        ) {
           continue;
         }
 
@@ -385,7 +438,10 @@ export class GitStorage extends StorageInterface {
         const configPath = this._fileToPath(file);
         if (!configPath) continue;
 
-        if (configPath === pathPrefix || configPath.startsWith(pathPrefix + '/')) {
+        if (
+          configPath === pathPrefix ||
+          configPath.startsWith(pathPrefix + '/')
+        ) {
           await this._deleteFile(file);
           deletedCount++;
         }
@@ -410,7 +466,10 @@ export class GitStorage extends StorageInterface {
         const configPath = this._fileToPath(file);
         if (!configPath) continue;
 
-        if (configPath === pathPrefix || configPath.startsWith(pathPrefix + '/')) {
+        if (
+          configPath === pathPrefix ||
+          configPath.startsWith(pathPrefix + '/')
+        ) {
           paths.push(configPath);
         }
       }

@@ -15,7 +15,9 @@ function getAuthHeaders(token) {
 
 async function handleResponse(response) {
   if (!response.ok) {
-    const error = await response.json().catch(() => ({ message: response.statusText }));
+    const error = await response
+      .json()
+      .catch(() => ({ message: response.statusText }));
     throw new Error(error.message || `HTTP ${response.status}`);
   }
   return response.json();
@@ -105,7 +107,7 @@ export const api = {
       if (AUTH_PATTERN) {
         const regex = new RegExp(AUTH_PATTERN);
         const match = headerValue.match(regex);
-        return match ? (match[1] || match[0]) : headerValue;
+        return match ? match[1] || match[0] : headerValue;
       }
 
       // Default: strip "Bearer " prefix if present

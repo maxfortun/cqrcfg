@@ -18,7 +18,7 @@ export const config = {
     },
     etcd: {
       hosts: process.env.ETCD_HOSTS
-        ? process.env.ETCD_HOSTS.split(',').map(h => h.trim())
+        ? process.env.ETCD_HOSTS.split(',').map((h) => h.trim())
         : ['http://localhost:2379'],
       prefix: process.env.ETCD_PREFIX || '/cqrcfg',
     },
@@ -26,7 +26,8 @@ export const config = {
       remoteUrl: process.env.GIT_REMOTE_URL || '',
       localPath: process.env.GIT_LOCAL_PATH || '/tmp/cqrcfg-git',
       branch: process.env.GIT_BRANCH || 'main',
-      commitAuthor: process.env.GIT_COMMIT_AUTHOR || 'cqrcfg <cqrcfg@localhost>',
+      commitAuthor:
+        process.env.GIT_COMMIT_AUTHOR || 'cqrcfg <cqrcfg@localhost>',
       pullInterval: parseInt(process.env.GIT_PULL_INTERVAL, 10) || 30000,
       userName: process.env.GIT_USER_NAME || 'cqrcfg',
       userEmail: process.env.GIT_USER_EMAIL || 'cqrcfg@localhost',
@@ -42,7 +43,7 @@ export const config = {
     type: process.env.NOTIFICATIONS_TYPE || 'websocket',
     kafka: {
       brokers: process.env.KAFKA_BROKERS
-        ? process.env.KAFKA_BROKERS.split(',').map(b => b.trim())
+        ? process.env.KAFKA_BROKERS.split(',').map((b) => b.trim())
         : ['localhost:9092'],
       topic: process.env.KAFKA_TOPIC || 'cqrcfg-changes',
       clientId: process.env.KAFKA_CLIENT_ID || 'cqrcfg',
@@ -56,14 +57,20 @@ export const config = {
   },
   oidc: {
     jwksUris: process.env.OIDC_JWKS_URIS
-      ? process.env.OIDC_JWKS_URIS.split(',').map(u => u.trim()).filter(Boolean)
+      ? process.env.OIDC_JWKS_URIS.split(',')
+          .map((u) => u.trim())
+          .filter(Boolean)
       : [],
     issuers: process.env.OIDC_ISSUERS
-      ? process.env.OIDC_ISSUERS.split(',').map(i => i.trim()).filter(Boolean)
+      ? process.env.OIDC_ISSUERS.split(',')
+          .map((i) => i.trim())
+          .filter(Boolean)
       : [],
     audience: process.env.OIDC_AUDIENCE || undefined,
     claimsHeaders: process.env.OIDC_CLAIMS_HEADERS
-      ? process.env.OIDC_CLAIMS_HEADERS.split(',').map(h => h.trim()).filter(Boolean)
+      ? process.env.OIDC_CLAIMS_HEADERS.split(',')
+          .map((h) => h.trim())
+          .filter(Boolean)
       : [],
     // JWKS cache TTL in seconds (0 = no caching, keys fetched every request)
     jwksCacheTtl: parseInt(process.env.OIDC_JWKS_CACHE_TTL, 10) || 120,
@@ -96,10 +103,11 @@ export function validateConfig() {
     errors.push(`STORAGE_TYPE must be one of: ${validStorage.join(', ')}`);
   }
 
-  
   const validNotifications = ['websocket', 'kafka', 'amqp'];
   if (!validNotifications.includes(config.notifications.type)) {
-    errors.push(`NOTIFICATIONS_TYPE must be one of: ${validNotifications.join(', ')}`);
+    errors.push(
+      `NOTIFICATIONS_TYPE must be one of: ${validNotifications.join(', ')}`,
+    );
   }
 
   if (errors.length > 0) {

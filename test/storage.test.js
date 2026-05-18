@@ -49,7 +49,7 @@ describe('MongoDB Storage', async () => {
     const results = await storage.getByPrefix('/config/app1');
 
     assert.strictEqual(results.length, 2);
-    const paths = results.map(r => r.path);
+    const paths = results.map((r) => r.path);
     assert.ok(paths.includes('/config/app1/db'));
     assert.ok(paths.includes('/config/app1/cache'));
   });

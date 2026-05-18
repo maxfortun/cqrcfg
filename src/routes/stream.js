@@ -1,6 +1,9 @@
 import * as jose from 'jose';
 import { config } from '../config.js';
-import { subscribeToChanges, supportsSubscription } from '../services/notificationService.js';
+import {
+  subscribeToChanges,
+  supportsSubscription,
+} from '../services/notificationService.js';
 
 let jwks = null;
 
@@ -60,7 +63,11 @@ function getJwtVerifyOptions() {
 async function parseJwtHeaderValue(headerValue, keySet) {
   if (!headerValue) return null;
 
-  const { payload } = await jose.jwtVerify(headerValue, keySet, getJwtVerifyOptions());
+  const { payload } = await jose.jwtVerify(
+    headerValue,
+    keySet,
+    getJwtVerifyOptions(),
+  );
   return payload;
 }
 
@@ -113,7 +120,11 @@ async function extractClaimsFromHeaders(headers, keySet) {
  */
 async function verifyToken(token, headers) {
   const keySet = await getJWKS();
-  const { payload } = await jose.jwtVerify(token, keySet, getJwtVerifyOptions());
+  const { payload } = await jose.jwtVerify(
+    token,
+    keySet,
+    getJwtVerifyOptions(),
+  );
 
   // Check for claims in separate headers (e.g., from a proxy that extracts id_token claims)
   // JWT-format headers are verified, JSON/base64 headers are parsed directly
@@ -132,7 +143,8 @@ async function verifyToken(token, headers) {
 function hasReadPermission(user, requestedPath) {
   return user.permissions.some((perm) => {
     if (perm.path === requestedPath) return perm.actions?.includes('read');
-    if (requestedPath.startsWith(perm.path + '/')) return perm.actions?.includes('read');
+    if (requestedPath.startsWith(perm.path + '/'))
+      return perm.actions?.includes('read');
     return false;
   });
 }
@@ -166,20 +178,28 @@ export default async function streamRoutes(fastify) {
     try {
       // Check if subscriptions are supported
       if (!supportsSubscription()) {
-        socket.send(JSON.stringify({
-          type: 'error',
-          message: 'Change notifications not supported by current broker',
-        }));
+        socket.send(
+          JSON.stringify({
+            type: 'error',
+            message: 'Change notifications not supported by current broker',
+          }),
+        );
         socket.close(1008, 'Subscriptions not supported');
         return;
       }
 
       // Extract token from query string or Authorization header
-      const token = request.query.token ||
+      const token =
+        request.query.token ||
         request.headers.authorization?.replace('Bearer ', '');
 
       if (!token) {
-        socket.send(JSON.stringify({ type: 'error', message: 'Missing authentication token' }));
+        socket.send(
+          JSON.stringify({
+            type: 'error',
+            message: 'Missing authentication token',
+          }),
+        );
         socket.close(1008, 'Unauthorized');
         return;
       }
@@ -188,7 +208,9 @@ export default async function streamRoutes(fastify) {
       try {
         user = await verifyToken(token, request.headers);
       } catch (error) {
-        socket.send(JSON.stringify({ type: 'error', message: 'Invalid token' }));
+        socket.send(
+          JSON.stringify({ type: 'error', message: 'Invalid token' }),
+        );
         socket.close(1008, 'Unauthorized');
         return;
       }
@@ -205,21 +227,25 @@ export default async function streamRoutes(fastify) {
 
       // Check authorization
       if (!hasReadPermission(user, configPath)) {
-        socket.send(JSON.stringify({
-          type: 'error',
-          message: `Access denied: no read permission for ${configPath}`,
-        }));
+        socket.send(
+          JSON.stringify({
+            type: 'error',
+            message: `Access denied: no read permission for ${configPath}`,
+          }),
+        );
         socket.close(1008, 'Forbidden');
         return;
       }
 
       // Send connected message
-      socket.send(JSON.stringify({
-        type: 'connected',
-        path: configPath,
-        user: user.sub,
-        notifications: config.notifications.type,
-      }));
+      socket.send(
+        JSON.stringify({
+          type: 'connected',
+          path: configPath,
+          user: user.sub,
+          notifications: config.notifications.type,
+        }),
+      );
 
       // Subscribe to changes via broker
       subscription = await subscribeToChanges(configPath, (event) => {
@@ -260,7 +286,9 @@ export default async function streamRoutes(fastify) {
         subscription.unsubscribe();
       }
       if (socket.readyState === socket.OPEN) {
-        socket.send(JSON.stringify({ type: 'error', message: 'Internal server error' }));
+        socket.send(
+          JSON.stringify({ type: 'error', message: 'Internal server error' }),
+        );
         socket.close(1011, 'Internal Error');
       }
     }

@@ -18,7 +18,9 @@ async function fetchIssuerJwks(issuer) {
     // Fetch OpenID configuration
     const configResponse = await fetch(wellKnownUrl);
     if (!configResponse.ok) {
-      console.warn(`Failed to fetch OpenID config from ${wellKnownUrl}: ${configResponse.status}`);
+      console.warn(
+        `Failed to fetch OpenID config from ${wellKnownUrl}: ${configResponse.status}`,
+      );
       return [];
     }
 
@@ -33,7 +35,9 @@ async function fetchIssuerJwks(issuer) {
     // Fetch JWKS
     const jwksResponse = await fetch(jwksUri);
     if (!jwksResponse.ok) {
-      console.warn(`Failed to fetch JWKS from ${jwksUri}: ${jwksResponse.status}`);
+      console.warn(
+        `Failed to fetch JWKS from ${jwksUri}: ${jwksResponse.status}`,
+      );
       return [];
     }
 
@@ -83,7 +87,9 @@ async function fetchAllJWKS() {
   }
 
   if (allKeys.length === 0) {
-    throw new Error('No JWKS keys found from any configured source (OIDC_JWKS_URI or OIDC_ISSUERS)');
+    throw new Error(
+      'No JWKS keys found from any configured source (OIDC_JWKS_URI or OIDC_ISSUERS)',
+    );
   }
 
   // Store keys for reference
@@ -95,12 +101,14 @@ async function fetchAllJWKS() {
   // Set cache expiry
   const ttlSeconds = config.oidc.jwksCacheTtl;
   if (ttlSeconds > 0) {
-    jwksCacheExpiry = Date.now() + (ttlSeconds * 1000);
+    jwksCacheExpiry = Date.now() + ttlSeconds * 1000;
   } else {
     jwksCacheExpiry = 0; // No caching
   }
 
-  console.log(`Loaded ${allKeys.length} JWKS key(s) from configured sources (cache TTL: ${ttlSeconds}s)`);
+  console.log(
+    `Loaded ${allKeys.length} JWKS key(s) from configured sources (cache TTL: ${ttlSeconds}s)`,
+  );
   return combinedJwks;
 }
 
@@ -129,10 +137,9 @@ async function getJWKS() {
   }
 
   // Start a new refresh
-  jwksRefreshPromise = fetchAllJWKS()
-    .finally(() => {
-      jwksRefreshPromise = null;
-    });
+  jwksRefreshPromise = fetchAllJWKS().finally(() => {
+    jwksRefreshPromise = null;
+  });
 
   return jwksRefreshPromise;
 }
@@ -209,7 +216,11 @@ async function verifyJwtWithFallback(token, keySet, options) {
 async function parseJwtHeaderValue(headerValue, keySet) {
   if (!headerValue) return null;
 
-  const { payload } = await verifyJwtWithFallback(headerValue, keySet, getJwtVerifyOptions());
+  const { payload } = await verifyJwtWithFallback(
+    headerValue,
+    keySet,
+    getJwtVerifyOptions(),
+  );
   return payload;
 }
 
@@ -282,7 +293,11 @@ export async function authHook(request, reply) {
 
   try {
     const keySet = await getJWKS();
-    const { payload } = await verifyJwtWithFallback(token, keySet, getJwtVerifyOptions());
+    const { payload } = await verifyJwtWithFallback(
+      token,
+      keySet,
+      getJwtVerifyOptions(),
+    );
 
     // Check for claims in separate headers (e.g., from a proxy that extracts id_token claims)
     // JWT-format headers are verified, JSON/base64 headers are parsed directly

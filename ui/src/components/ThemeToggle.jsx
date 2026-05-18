@@ -4,7 +4,9 @@ const THEME_KEY = 'cqrcfg_theme';
 const envName = window.__CQRCFG_ENV__ || '';
 
 function getSystemTheme() {
-  return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+  return window.matchMedia('(prefers-color-scheme: dark)').matches
+    ? 'dark'
+    : 'light';
 }
 
 function getThemeFilename(mode) {
@@ -49,8 +51,10 @@ export function ThemeToggle() {
     setTheme(themes[nextIndex]);
   };
 
-  const icon = theme === 'light' ? '\u2600' : theme === 'dark' ? '\u263E' : '\u2699';
-  const label = theme === 'light' ? 'Light' : theme === 'dark' ? 'Dark' : 'Auto';
+  const icon =
+    theme === 'light' ? '\u2600' : theme === 'dark' ? '\u263E' : '\u2699';
+  const label =
+    theme === 'light' ? 'Light' : theme === 'dark' ? 'Dark' : 'Auto';
 
   return (
     <button

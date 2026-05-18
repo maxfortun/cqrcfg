@@ -28,9 +28,7 @@ export async function createTestToken(claims = {}, options = {}) {
 
   const defaultClaims = {
     sub: 'test-user',
-    config_permissions: [
-      { path: '/config', actions: ['read', 'write'] },
-    ],
+    config_permissions: [{ path: '/config', actions: ['read', 'write'] }],
   };
 
   const mergedClaims = { ...defaultClaims, ...claims };
@@ -86,7 +84,7 @@ export async function waitForService(url, maxRetries = 30, delay = 1000) {
     } catch {
       // Service not ready yet
     }
-    await new Promise(r => setTimeout(r, delay));
+    await new Promise((r) => setTimeout(r, delay));
   }
   throw new Error(`Service at ${url} not ready after ${maxRetries} retries`);
 }
@@ -105,7 +103,7 @@ export async function waitForMongo(uri, maxRetries = 30) {
     } catch {
       // MongoDB not ready yet
     }
-    await new Promise(r => setTimeout(r, 1000));
+    await new Promise((r) => setTimeout(r, 1000));
   }
   throw new Error(`MongoDB at ${uri} not ready after ${maxRetries} retries`);
 }
@@ -128,9 +126,11 @@ export async function waitForKafka(brokers, maxRetries = 30) {
     } catch {
       // Kafka not ready yet
     }
-    await new Promise(r => setTimeout(r, 1000));
+    await new Promise((r) => setTimeout(r, 1000));
   }
-  throw new Error(`Kafka at ${brokers.join(',')} not ready after ${maxRetries} retries`);
+  throw new Error(
+    `Kafka at ${brokers.join(',')} not ready after ${maxRetries} retries`,
+  );
 }
 
 // Clean up MongoDB test data

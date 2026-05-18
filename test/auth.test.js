@@ -2,7 +2,12 @@ import { describe, it, before, after } from 'node:test';
 import assert from 'node:assert';
 import { SignJWT, exportJWK, generateKeyPair } from 'jose';
 import Fastify from 'fastify';
-import { initTestKeys, createTestToken, startJwksServer, stopJwksServer } from './setup.js';
+import {
+  initTestKeys,
+  createTestToken,
+  startJwksServer,
+  stopJwksServer,
+} from './setup.js';
 
 describe('JWT Authentication', async () => {
   let fastify;
@@ -18,11 +23,15 @@ describe('JWT Authentication', async () => {
     fastify = Fastify({ logger: false });
 
     // Test route with auth
-    fastify.get('/test', {
-      preHandler: [authHook],
-    }, async (request) => {
-      return { user: request.user };
-    });
+    fastify.get(
+      '/test',
+      {
+        preHandler: [authHook],
+      },
+      async (request) => {
+        return { user: request.user };
+      },
+    );
   });
 
   after(async () => {
@@ -75,7 +84,7 @@ describe('JWT Authentication', async () => {
   it('should reject expired token', async () => {
     const token = await createTestToken(
       { sub: 'user123' },
-      { expiresIn: '-1h' } // Already expired
+      { expiresIn: '-1h' }, // Already expired
     );
 
     const response = await fastify.inject({
@@ -155,7 +164,11 @@ describe('Config Validation', () => {
 
       assert.strictEqual(hasJwksUri, false);
       assert.strictEqual(hasIssuers, false);
-      assert.strictEqual(!hasJwksUri && !hasIssuers, true, 'Should fail validation when neither source is configured');
+      assert.strictEqual(
+        !hasJwksUri && !hasIssuers,
+        true,
+        'Should fail validation when neither source is configured',
+      );
     } finally {
       // Restore original values
       if (origJwksUri) process.env.OIDC_JWKS_URIS = origJwksUri;
@@ -166,19 +179,31 @@ describe('Config Validation', () => {
   it('should accept OIDC_JWKS_URIS alone', () => {
     const hasJwksUri = true;
     const hasIssuers = false;
-    assert.strictEqual(!hasJwksUri && !hasIssuers, false, 'Should pass with JWKS_URI');
+    assert.strictEqual(
+      !hasJwksUri && !hasIssuers,
+      false,
+      'Should pass with JWKS_URI',
+    );
   });
 
   it('should accept OIDC_ISSUERS alone', () => {
     const hasJwksUri = false;
     const hasIssuers = true;
-    assert.strictEqual(!hasJwksUri && !hasIssuers, false, 'Should pass with ISSUERS');
+    assert.strictEqual(
+      !hasJwksUri && !hasIssuers,
+      false,
+      'Should pass with ISSUERS',
+    );
   });
 
   it('should accept both sources configured', () => {
     const hasJwksUri = true;
     const hasIssuers = true;
-    assert.strictEqual(!hasJwksUri && !hasIssuers, false, 'Should pass with both');
+    assert.strictEqual(
+      !hasJwksUri && !hasIssuers,
+      false,
+      'Should pass with both',
+    );
   });
 });
 
@@ -201,7 +226,9 @@ describe('Claims Header Parsing', async () => {
   it('should parse base64-encoded JSON', () => {
     const claims = { sub: 'user123', role: 'admin' };
     const encoded = Buffer.from(JSON.stringify(claims)).toString('base64');
-    const decoded = JSON.parse(Buffer.from(encoded, 'base64').toString('utf-8'));
+    const decoded = JSON.parse(
+      Buffer.from(encoded, 'base64').toString('utf-8'),
+    );
 
     assert.deepStrictEqual(decoded, claims);
   });

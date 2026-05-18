@@ -1,7 +1,9 @@
 import { waitForMongo, waitForKafka } from './setup.js';
 
 const MONGO_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017';
-const KAFKA_BROKERS = (process.env.KAFKA_BROKERS || 'localhost:9092').split(',');
+const KAFKA_BROKERS = (process.env.KAFKA_BROKERS || 'localhost:9092').split(
+  ',',
+);
 
 async function main() {
   console.log('Waiting for services to be ready...');

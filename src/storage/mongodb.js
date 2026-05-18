@@ -21,10 +21,9 @@ export class MongoDBStorage extends StorageInterface {
     this.db = this.client.db(this.database);
 
     // Create unique index on path
-    await this.db.collection(COLLECTION).createIndex(
-      { path: 1 },
-      { unique: true }
-    );
+    await this.db
+      .collection(COLLECTION)
+      .createIndex({ path: 1 }, { unique: true });
 
     console.log(`Connected to MongoDB: ${this.database}`);
   }
@@ -65,7 +64,8 @@ export class MongoDBStorage extends StorageInterface {
       let parsedValue = value;
       if (value === 'true') parsedValue = true;
       else if (value === 'false') parsedValue = false;
-      else if (!isNaN(Number(value)) && value !== '') parsedValue = Number(value);
+      else if (!isNaN(Number(value)) && value !== '')
+        parsedValue = Number(value);
 
       // Match either the parsed value or string representation
       query[dataKey] = { $in: [parsedValue, value] };
@@ -86,7 +86,7 @@ export class MongoDBStorage extends StorageInterface {
           updatedAt: new Date(),
         },
       },
-      { upsert: true }
+      { upsert: true },
     );
   }
 
@@ -102,17 +102,20 @@ export class MongoDBStorage extends StorageInterface {
     const collection = this.db.collection(COLLECTION);
     const regex = new RegExp(`^${escapeRegex(pathPrefix)}($|/)`);
 
-    const docs = await collection.find({ path: regex }, { projection: { path: 1, _id: 0 } }).toArray();
-    return docs.map(doc => doc.path);
+    const docs = await collection
+      .find({ path: regex }, { projection: { path: 1, _id: 0 } })
+      .toArray();
+    return docs.map((doc) => doc.path);
   }
 
   async searchPaths(pattern) {
     const collection = this.db.collection(COLLECTION);
     const regex = globToRegex(pattern);
-    const docs = await collection.find({ path: regex }, { projection: { path: 1, _id: 0 } }).toArray();
-    return docs.map(doc => doc.path);
+    const docs = await collection
+      .find({ path: regex }, { projection: { path: 1, _id: 0 } })
+      .toArray();
+    return docs.map((doc) => doc.path);
   }
-
 }
 
 function escapeRegex(str) {

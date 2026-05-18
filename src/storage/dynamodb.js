@@ -46,31 +46,37 @@ export class DynamoDBStorage extends StorageInterface {
 
   async _ensureTable() {
     try {
-      await this.client.send(new DescribeTableCommand({
-        TableName: this.tableName,
-      }));
+      await this.client.send(
+        new DescribeTableCommand({
+          TableName: this.tableName,
+        }),
+      );
     } catch (error) {
       if (error.name === 'ResourceNotFoundException') {
-        await this.client.send(new CreateTableCommand({
-          TableName: this.tableName,
-          KeySchema: [
-            { AttributeName: 'pk', KeyType: 'HASH' },
-            { AttributeName: 'path', KeyType: 'RANGE' },
-          ],
-          AttributeDefinitions: [
-            { AttributeName: 'pk', AttributeType: 'S' },
-            { AttributeName: 'path', AttributeType: 'S' },
-          ],
-          BillingMode: 'PAY_PER_REQUEST',
-        }));
+        await this.client.send(
+          new CreateTableCommand({
+            TableName: this.tableName,
+            KeySchema: [
+              { AttributeName: 'pk', KeyType: 'HASH' },
+              { AttributeName: 'path', KeyType: 'RANGE' },
+            ],
+            AttributeDefinitions: [
+              { AttributeName: 'pk', AttributeType: 'S' },
+              { AttributeName: 'path', AttributeType: 'S' },
+            ],
+            BillingMode: 'PAY_PER_REQUEST',
+          }),
+        );
 
         // Wait for table to be active
         let active = false;
         while (!active) {
-          await new Promise(r => setTimeout(r, 1000));
-          const desc = await this.client.send(new DescribeTableCommand({
-            TableName: this.tableName,
-          }));
+          await new Promise((r) => setTimeout(r, 1000));
+          const desc = await this.client.send(
+            new DescribeTableCommand({
+              TableName: this.tableName,
+            }),
+          );
           active = desc.Table.TableStatus === 'ACTIVE';
         }
 
@@ -108,20 +114,25 @@ export class DynamoDBStorage extends StorageInterface {
     let lastKey = undefined;
 
     do {
-      const response = await this.docClient.send(new QueryCommand({
-        TableName: this.tableName,
-        KeyConditionExpression: 'pk = :pk AND begins_with(#path, :prefix)',
-        ExpressionAttributeNames: { '#path': 'path' },
-        ExpressionAttributeValues: {
-          ':pk': this._getPartitionKey(pathPrefix),
-          ':prefix': pathPrefix,
-        },
-        ExclusiveStartKey: lastKey,
-      }));
+      const response = await this.docClient.send(
+        new QueryCommand({
+          TableName: this.tableName,
+          KeyConditionExpression: 'pk = :pk AND begins_with(#path, :prefix)',
+          ExpressionAttributeNames: { '#path': 'path' },
+          ExpressionAttributeValues: {
+            ':pk': this._getPartitionKey(pathPrefix),
+            ':prefix': pathPrefix,
+          },
+          ExclusiveStartKey: lastKey,
+        }),
+      );
 
       for (const item of response.Items || []) {
         // Verify boundary match (not /app1 matching /app10)
-        if (item.path === pathPrefix || item.path.startsWith(pathPrefix + '/')) {
+        if (
+          item.path === pathPrefix ||
+          item.path.startsWith(pathPrefix + '/')
+        ) {
           results.push({
             path: item.path,
             data: item.data,
@@ -137,13 +148,15 @@ export class DynamoDBStorage extends StorageInterface {
   }
 
   async getByPath(path) {
-    const response = await this.docClient.send(new GetCommand({
-      TableName: this.tableName,
-      Key: {
-        pk: this._getPartitionKey(path),
-        path,
-      },
-    }));
+    const response = await this.docClient.send(
+      new GetCommand({
+        TableName: this.tableName,
+        Key: {
+          pk: this._getPartitionKey(path),
+          path,
+        },
+      }),
+    );
 
     if (!response.Item) return null;
 
@@ -165,15 +178,17 @@ export class DynamoDBStorage extends StorageInterface {
   }
 
   async upsert(path, data) {
-    await this.docClient.send(new PutCommand({
-      TableName: this.tableName,
-      Item: {
-        pk: this._getPartitionKey(path),
-        path,
-        data,
-        updatedAt: new Date().toISOString(),
-      },
-    }));
+    await this.docClient.send(
+      new PutCommand({
+        TableName: this.tableName,
+        Item: {
+          pk: this._getPartitionKey(path),
+          path,
+          data,
+          updatedAt: new Date().toISOString(),
+        },
+      }),
+    );
   }
 
   async deleteByPrefix(pathPrefix) {
@@ -189,18 +204,20 @@ export class DynamoDBStorage extends StorageInterface {
     }
 
     for (const batch of batches) {
-      await this.docClient.send(new BatchWriteCommand({
-        RequestItems: {
-          [this.tableName]: batch.map(item => ({
-            DeleteRequest: {
-              Key: {
-                pk: this._getPartitionKey(item.path),
-                path: item.path,
+      await this.docClient.send(
+        new BatchWriteCommand({
+          RequestItems: {
+            [this.tableName]: batch.map((item) => ({
+              DeleteRequest: {
+                Key: {
+                  pk: this._getPartitionKey(item.path),
+                  path: item.path,
+                },
               },
-            },
-          })),
-        },
-      }));
+            })),
+          },
+        }),
+      );
     }
 
     return items.length;
@@ -208,7 +225,7 @@ export class DynamoDBStorage extends StorageInterface {
 
   async listPaths(pathPrefix) {
     const items = await this.getByPrefix(pathPrefix);
-    return items.map(item => item.path);
+    return items.map((item) => item.path);
   }
 
   async searchPaths(pattern) {
@@ -219,12 +236,14 @@ export class DynamoDBStorage extends StorageInterface {
     let lastKey = undefined;
 
     do {
-      const response = await this.docClient.send(new ScanCommand({
-        TableName: this.tableName,
-        ProjectionExpression: '#path',
-        ExpressionAttributeNames: { '#path': 'path' },
-        ExclusiveStartKey: lastKey,
-      }));
+      const response = await this.docClient.send(
+        new ScanCommand({
+          TableName: this.tableName,
+          ProjectionExpression: '#path',
+          ExpressionAttributeNames: { '#path': 'path' },
+          ExclusiveStartKey: lastKey,
+        }),
+      );
 
       for (const item of response.Items || []) {
         if (regex.test(item.path)) {
@@ -237,5 +256,4 @@ export class DynamoDBStorage extends StorageInterface {
 
     return results;
   }
-
 }

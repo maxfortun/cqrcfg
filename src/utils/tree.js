@@ -71,10 +71,7 @@ export function deepMerge(target, source) {
     const sourceValue = source[key];
     const targetValue = result[key];
 
-    if (
-      isPlainObject(sourceValue) &&
-      isPlainObject(targetValue)
-    ) {
+    if (isPlainObject(sourceValue) && isPlainObject(targetValue)) {
       result[key] = deepMerge(targetValue, sourceValue);
     } else {
       result[key] = sourceValue;

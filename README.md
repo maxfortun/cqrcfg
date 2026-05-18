@@ -48,6 +48,7 @@ cp .env.example .env
 ```
 
 Required configuration:
+
 - `OIDC_JWKS_URI` - JWKs endpoint for token verification
 
 ### 3. Start the server
@@ -87,27 +88,29 @@ The UI will be available at `http://localhost:5173` and requires a valid JWT tok
 The UI supports runtime theming to visually distinguish between environments (dev, int, prod). Themes are CSS files that override CSS variables.
 
 **Available themes:**
+
 - `ui/public/themes/default.css` - Dark blue (default)
 - `ui/public/themes/dev.css` - Green accent
 - `ui/public/themes/int.css` - Blue accent
 - `ui/public/themes/prod.css` - Red accent
 
 **CSS Variables:**
+
 ```css
 :root {
-  --bg-primary: #1a1a2e;      /* Main background */
-  --bg-secondary: #16213e;    /* Sidebar, cards */
-  --bg-tertiary: #0f3460;     /* Inputs, buttons */
-  --text-primary: #e8e8e8;    /* Main text */
-  --text-secondary: #a8a8a8;  /* Muted text */
-  --accent: #e94560;          /* Primary accent color */
-  --accent-hover: #ff6b6b;    /* Accent hover state */
+  --bg-primary: #1a1a2e; /* Main background */
+  --bg-secondary: #16213e; /* Sidebar, cards */
+  --bg-tertiary: #0f3460; /* Inputs, buttons */
+  --text-primary: #e8e8e8; /* Main text */
+  --text-secondary: #a8a8a8; /* Muted text */
+  --accent: #e94560; /* Primary accent color */
+  --accent-hover: #ff6b6b; /* Accent hover state */
   --success: #4caf50;
   --warning: #ff9800;
   --error: #f44336;
   --border: #2a2a4a;
-  --env-badge-bg: #e94560;    /* Environment badge background */
-  --env-badge-text: #ffffff;  /* Environment badge text */
+  --env-badge-bg: #e94560; /* Environment badge background */
+  --env-badge-text: #ffffff; /* Environment badge text */
 }
 ```
 
@@ -132,6 +135,7 @@ docker compose down -v
 ```
 
 **Services:**
+
 - **API**: http://localhost:3000
 - **UI**: http://localhost:8080
 - **Mock OIDC**: http://localhost:8888 (token generator UI)
@@ -187,6 +191,7 @@ GIT_DATA_PATH=./data/git docker compose -f docker-compose.git.yml up -d
 4. Copy the token and paste it into the UI at http://localhost:8080
 
 Or via curl:
+
 ```bash
 # Get a token with full permissions
 TOKEN=$(curl -s -X POST http://localhost:8888/token \
@@ -210,6 +215,7 @@ OIDC_ISSUERS=https://accounts.google.com docker compose up -d
 ```
 
 Or create a `.env` file:
+
 ```bash
 OIDC_JWKS_URIS=https://your-idp.com/.well-known/jwks.json
 # or
@@ -262,6 +268,7 @@ UI_AUTH_HEADER=Authorization UI_AUTH_PATTERN="^Token\\s+(.+)$" docker compose up
 ```
 
 In proxy auth mode:
+
 - Token input controls are hidden (shows "Proxy Auth" badge instead)
 - API requests don't include Authorization header (proxy adds it)
 - UI assumes full permissions (server enforces actual permissions)
@@ -271,6 +278,7 @@ In proxy auth mode:
 The UI includes light and dark themes for each environment. The theme toggle cycles between Light, Dark, and Auto (system preference).
 
 **Built-in themes:**
+
 - `light.css`, `dark.css` - Default (no env)
 - `dev-light.css`, `dev-dark.css` - Development (green accent)
 - `int-light.css`, `int-dark.css` - Integration (blue accent)
@@ -279,6 +287,7 @@ The UI includes light and dark themes for each environment. The theme toggle cyc
 **To create a custom theme:**
 
 1. Create a theme CSS file (copy from `ui/public/themes/dark.css`):
+
    ```css
    :root {
      --bg-primary: #1a1a2e;
@@ -289,9 +298,10 @@ The UI includes light and dark themes for each environment. The theme toggle cyc
    ```
 
 2. Create a config.js file:
+
    ```javascript
    window.__CQRCFG_ENV__ = 'my-env';
-   window.__CQRCFG_API_URL__ = '/api';  // or 'http://api.example.com'
+   window.__CQRCFG_API_URL__ = '/api'; // or 'http://api.example.com'
    ```
 
 3. Start with custom paths:
@@ -303,57 +313,57 @@ The UI includes light and dark themes for each environment. The theme toggle cyc
 
 ### Core Settings
 
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `PORT` | `3000` | Server port |
-| `HOST` | `0.0.0.0` | Server host |
-| `OIDC_JWKS_URIS` | (optional) | Comma-separated direct JWKS endpoint URLs |
-| `OIDC_ISSUERS` | (optional) | Comma-separated OIDC issuer URLs (fetches JWKS from each issuer's well-known endpoint) |
-| `OIDC_AUDIENCE` | (optional) | Expected JWT audience |
-| `OIDC_CLAIMS_HEADERS` | (optional) | Comma-separated header names for claims |
-| `OIDC_JWKS_CACHE_TTL` | `120` | JWKS cache TTL in seconds (0 = no caching) |
+| Variable              | Default    | Description                                                                            |
+| --------------------- | ---------- | -------------------------------------------------------------------------------------- |
+| `PORT`                | `3000`     | Server port                                                                            |
+| `HOST`                | `0.0.0.0`  | Server host                                                                            |
+| `OIDC_JWKS_URIS`      | (optional) | Comma-separated direct JWKS endpoint URLs                                              |
+| `OIDC_ISSUERS`        | (optional) | Comma-separated OIDC issuer URLs (fetches JWKS from each issuer's well-known endpoint) |
+| `OIDC_AUDIENCE`       | (optional) | Expected JWT audience                                                                  |
+| `OIDC_CLAIMS_HEADERS` | (optional) | Comma-separated header names for claims                                                |
+| `OIDC_JWKS_CACHE_TTL` | `120`      | JWKS cache TTL in seconds (0 = no caching)                                             |
 
 **Note:** At least one of `OIDC_JWKS_URIS` or `OIDC_ISSUERS` must be configured. Keys from all sources are combined for JWT verification. JWKS keys are cached and refreshed every `OIDC_JWKS_CACHE_TTL` seconds (default 120s) to support key rotation.
 
 ### Storage Settings
 
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `STORAGE_TYPE` | `mongodb` | Storage backend: `mongodb`, `dynamodb`, `etcd`, `git` |
-| `MONGODB_URI` | `mongodb://localhost:27017` | MongoDB connection string |
-| `MONGODB_DATABASE` | `cqrcfg` | MongoDB database name |
-| `DYNAMODB_TABLE` | `cqrcfg` | DynamoDB table name |
-| `AWS_REGION` | `us-east-1` | AWS region for DynamoDB |
-| `ETCD_HOSTS` | `http://localhost:2379` | Comma-separated etcd hosts |
-| `ETCD_PREFIX` | `/cqrcfg` | Key prefix in etcd |
-| `GIT_REMOTE_URL` | (optional) | Git remote URL; if empty, local-only mode (no pull/push) |
-| `GIT_LOCAL_PATH` | `/tmp/cqrcfg-git` | Local path for cloned repo cache |
-| `GIT_BRANCH` | `main` | Git branch to use |
-| `GIT_COMMIT_AUTHOR` | `cqrcfg <cqrcfg@localhost>` | Author string for commits |
-| `GIT_PULL_INTERVAL` | `30000` | Interval between pulls in ms (30s) |
-| `GIT_USER_NAME` | `cqrcfg` | Git user.name for commits |
-| `GIT_USER_EMAIL` | `cqrcfg@localhost` | Git user.email for commits |
-| `GIT_ENCRYPTION_SALT` | (optional) | Hex-encoded 8-byte salt for AES-256-CBC encryption |
-| `GIT_ENCRYPTION_PASSWORD` | (optional) | Password for encryption; both salt and password required to enable |
+| Variable                  | Default                     | Description                                                        |
+| ------------------------- | --------------------------- | ------------------------------------------------------------------ |
+| `STORAGE_TYPE`            | `mongodb`                   | Storage backend: `mongodb`, `dynamodb`, `etcd`, `git`              |
+| `MONGODB_URI`             | `mongodb://localhost:27017` | MongoDB connection string                                          |
+| `MONGODB_DATABASE`        | `cqrcfg`                    | MongoDB database name                                              |
+| `DYNAMODB_TABLE`          | `cqrcfg`                    | DynamoDB table name                                                |
+| `AWS_REGION`              | `us-east-1`                 | AWS region for DynamoDB                                            |
+| `ETCD_HOSTS`              | `http://localhost:2379`     | Comma-separated etcd hosts                                         |
+| `ETCD_PREFIX`             | `/cqrcfg`                   | Key prefix in etcd                                                 |
+| `GIT_REMOTE_URL`          | (optional)                  | Git remote URL; if empty, local-only mode (no pull/push)           |
+| `GIT_LOCAL_PATH`          | `/tmp/cqrcfg-git`           | Local path for cloned repo cache                                   |
+| `GIT_BRANCH`              | `main`                      | Git branch to use                                                  |
+| `GIT_COMMIT_AUTHOR`       | `cqrcfg <cqrcfg@localhost>` | Author string for commits                                          |
+| `GIT_PULL_INTERVAL`       | `30000`                     | Interval between pulls in ms (30s)                                 |
+| `GIT_USER_NAME`           | `cqrcfg`                    | Git user.name for commits                                          |
+| `GIT_USER_EMAIL`          | `cqrcfg@localhost`          | Git user.email for commits                                         |
+| `GIT_ENCRYPTION_SALT`     | (optional)                  | Hex-encoded 8-byte salt for AES-256-CBC encryption                 |
+| `GIT_ENCRYPTION_PASSWORD` | (optional)                  | Password for encryption; both salt and password required to enable |
 
 ### Notification Settings
 
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `NOTIFICATIONS_TYPE` | `websocket` | Notification broker: `websocket`, `kafka`, `amqp` |
-| `KAFKA_BROKERS` | `localhost:9092` | Comma-separated Kafka brokers |
-| `KAFKA_TOPIC` | `cqrcfg-changes` | Kafka topic for changes |
-| `AMQP_URL` | `amqp://localhost` | AMQP connection URL |
-| `AMQP_EXCHANGE` | `cqrcfg` | AMQP exchange name |
+| Variable             | Default            | Description                                       |
+| -------------------- | ------------------ | ------------------------------------------------- |
+| `NOTIFICATIONS_TYPE` | `websocket`        | Notification broker: `websocket`, `kafka`, `amqp` |
+| `KAFKA_BROKERS`      | `localhost:9092`   | Comma-separated Kafka brokers                     |
+| `KAFKA_TOPIC`        | `cqrcfg-changes`   | Kafka topic for changes                           |
+| `AMQP_URL`           | `amqp://localhost` | AMQP connection URL                               |
+| `AMQP_EXCHANGE`      | `cqrcfg`           | AMQP exchange name                                |
 
 ### Cache Settings
 
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `CACHE_ENABLED` | `true` | Enable/disable config value caching |
-| `CACHE_MAX_SIZE` | `1000` | Maximum number of cache entries |
+| Variable           | Default    | Description                          |
+| ------------------ | ---------- | ------------------------------------ |
+| `CACHE_ENABLED`    | `true`     | Enable/disable config value caching  |
+| `CACHE_MAX_SIZE`   | `1000`     | Maximum number of cache entries      |
 | `CACHE_MAX_MEMORY` | `52428800` | Maximum cache memory in bytes (50MB) |
-| `CACHE_TTL` | `120` | Cache TTL in seconds (2 minutes) |
+| `CACHE_TTL`        | `120`      | Cache TTL in seconds (2 minutes)     |
 
 The cache uses LRU (Least Recently Used) eviction with both entry count and memory limits to prevent memory exhaustion. Cache is automatically invalidated on writes.
 
@@ -387,6 +397,7 @@ Optionally filter results by specifying query parameters. The config is only ret
 - All filters must match (AND logic)
 
 **Examples:**
+
 ```bash
 # Get config without filtering
 curl -H "Authorization: Bearer $TOKEN" http://localhost:3000/config/app1
@@ -405,6 +416,7 @@ curl -H "Authorization: Bearer $TOKEN" "http://localhost:3000/config/app1?featur
 ```
 
 **Response:**
+
 ```json
 {
   "db": {
@@ -418,6 +430,7 @@ curl -H "Authorization: Bearer $TOKEN" "http://localhost:3000/config/app1?featur
 ```
 
 **Filter Mismatch Response (404):**
+
 ```json
 {
   "error": "Not Found",
@@ -434,18 +447,16 @@ GET /config/:path/
 When the path ends with `/`, returns a list of all paths under the specified prefix. Requires `list` permission.
 
 **Example:**
+
 ```bash
 curl -H "Authorization: Bearer $TOKEN" http://localhost:3000/config/app1/
 ```
 
 **Response:**
+
 ```json
 {
-  "keys": [
-    "/config/app1/db",
-    "/config/app1/cache",
-    "/config/app1/features"
-  ]
+  "keys": ["/config/app1/db", "/config/app1/cache", "/config/app1/features"]
 }
 ```
 
@@ -453,13 +464,14 @@ curl -H "Authorization: Bearer $TOKEN" http://localhost:3000/config/app1/
 
 The list endpoint supports wildcard patterns for searching across paths:
 
-| Pattern | Matches |
-|---------|---------|
-| `*` | Any characters except `/` (single path segment) |
-| `**` | Any characters including `/` (multiple segments) |
-| `?` | Single character except `/` |
+| Pattern | Matches                                          |
+| ------- | ------------------------------------------------ |
+| `*`     | Any characters except `/` (single path segment)  |
+| `**`    | Any characters including `/` (multiple segments) |
+| `?`     | Single character except `/`                      |
 
 **Examples:**
+
 ```bash
 # Find all "db" configs at any single level
 curl -H "Authorization: Bearer $TOKEN" "http://localhost:3000/config/*/db/"
@@ -484,6 +496,7 @@ Content-Type: application/json
 Merges the request body into the existing configuration. Missing values are preserved. Requires `write` permission.
 
 **Example:**
+
 ```bash
 # Existing: {"host": "localhost", "port": 5432, "user": "admin"}
 curl -X POST \
@@ -518,6 +531,7 @@ Content-Type: application/json
 Completely replaces the configuration at the path. All existing values are overwritten. Requires `write` permission.
 
 **Example:**
+
 ```bash
 # Existing: {"host": "localhost", "port": 5432, "user": "admin"}
 curl -X PUT \
@@ -554,12 +568,12 @@ DELETE /config/:path
 Deletes all configuration under the specified path.
 
 **Example:**
+
 ```bash
 curl -X DELETE \
   -H "Authorization: Bearer $TOKEN" \
   http://localhost:3000/config/app1/db
 ```
-
 
 ## WebSocket Streams
 
@@ -570,6 +584,7 @@ WS /stream/:path?token=<jwt>
 ```
 
 **Example (JavaScript):**
+
 ```javascript
 const ws = new WebSocket('ws://localhost:3000/stream/app1?token=YOUR_JWT');
 
@@ -580,6 +595,7 @@ ws.onmessage = (event) => {
 ```
 
 **Events:**
+
 ```json
 {"type": "connected", "path": "/config/app1", "user": "user123"}
 {"type": "change", "operation": "update", "path": "/config/app1/db", "data": {...}}
@@ -610,6 +626,7 @@ The token is verified against the JWKS endpoint. Multiple issuers are supported 
 ### Claims Headers
 
 Claims can also be provided via HTTP headers (configured via `OIDC_CLAIMS_HEADERS`). This is useful when a reverse proxy extracts claims from id_tokens. Header values can be:
+
 - Plain JSON
 - Base64-encoded JSON
 - Signed JWT (verified against JWKS)
@@ -661,13 +678,13 @@ All errors return JSON:
 }
 ```
 
-| Status | Error | Description |
-|--------|-------|-------------|
-| 400 | Bad Request | Invalid JSON or path format |
-| 401 | Unauthorized | Missing or invalid JWT |
-| 403 | Forbidden | Insufficient permissions |
-| 404 | Not Found | Config path doesn't exist |
-| 500 | Internal Server Error | Unexpected error |
+| Status | Error                 | Description                 |
+| ------ | --------------------- | --------------------------- |
+| 400    | Bad Request           | Invalid JSON or path format |
+| 401    | Unauthorized          | Missing or invalid JWT      |
+| 403    | Forbidden             | Insufficient permissions    |
+| 404    | Not Found             | Config path doesn't exist   |
+| 500    | Internal Server Error | Unexpected error            |
 
 ## License
 

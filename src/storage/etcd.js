@@ -110,7 +110,7 @@ export class EtcdStorage extends StorageInterface {
     // Get all keys first to count and verify boundaries
     const response = await this.client.getAll().prefix(etcdPrefix).keys();
 
-    const keysToDelete = response.filter(key => {
+    const keysToDelete = response.filter((key) => {
       const path = this._fromEtcdKey(key);
       return path === pathPrefix || path.startsWith(pathPrefix + '/');
     });
@@ -127,7 +127,7 @@ export class EtcdStorage extends StorageInterface {
 
   async listPaths(pathPrefix) {
     const items = await this.getByPrefix(pathPrefix);
-    return items.map(item => item.path);
+    return items.map((item) => item.path);
   }
 
   async searchPaths(pattern) {
@@ -145,5 +145,4 @@ export class EtcdStorage extends StorageInterface {
 
     return results;
   }
-
 }

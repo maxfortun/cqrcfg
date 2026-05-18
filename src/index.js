@@ -2,7 +2,10 @@ import Fastify from 'fastify';
 import websocket from '@fastify/websocket';
 import { config, validateConfig } from './config.js';
 import { initStorage, closeStorage } from './storage/index.js';
-import { initNotifications, closeNotifications } from './notifications/index.js';
+import {
+  initNotifications,
+  closeNotifications,
+} from './notifications/index.js';
 import configRoutes from './routes/config.js';
 import streamRoutes from './routes/stream.js';
 
@@ -77,14 +80,20 @@ async function main() {
     host: config.server.host,
   });
 
-  console.log(`Config service running at http://${config.server.host}:${config.server.port}`);
+  console.log(
+    `Config service running at http://${config.server.host}:${config.server.port}`,
+  );
   console.log(`Storage: ${config.storage.type}`);
   console.log(`Notifications: ${config.notifications.type}`);
   console.log('Endpoints:');
   console.log('  GET    /health        - Health check');
   console.log('  GET    /config/*      - Get config subtree');
-  console.log('  POST   /config/*      - Merge config (preserves missing values)');
-  console.log('  PUT    /config/*      - Replace config (overwrites all values)');
+  console.log(
+    '  POST   /config/*      - Merge config (preserves missing values)',
+  );
+  console.log(
+    '  PUT    /config/*      - Replace config (overwrites all values)',
+  );
   console.log('  DELETE /config/*      - Delete config subtree');
   console.log('  (POST/PUT support ?from=... to copy from another path)');
   console.log('  WS     /stream/*      - Subscribe to changes');

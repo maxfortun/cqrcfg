@@ -53,15 +53,17 @@ const server = createServer(async (req, res) => {
   // OpenID Configuration
   if (url.pathname === '/.well-known/openid-configuration') {
     res.writeHead(200, { 'Content-Type': 'application/json' });
-    res.end(JSON.stringify({
-      issuer: ISSUER,
-      jwks_uri: `${ISSUER}/.well-known/jwks.json`,
-      token_endpoint: `${ISSUER}/token`,
-      authorization_endpoint: `${ISSUER}/authorize`,
-      response_types_supported: ['token'],
-      subject_types_supported: ['public'],
-      id_token_signing_alg_values_supported: ['RS256'],
-    }));
+    res.end(
+      JSON.stringify({
+        issuer: ISSUER,
+        jwks_uri: `${ISSUER}/.well-known/jwks.json`,
+        token_endpoint: `${ISSUER}/token`,
+        authorization_endpoint: `${ISSUER}/authorize`,
+        response_types_supported: ['token'],
+        subject_types_supported: ['public'],
+        id_token_signing_alg_values_supported: ['RS256'],
+      }),
+    );
     return;
   }
 
@@ -93,17 +95,19 @@ const server = createServer(async (req, res) => {
     if (!claims.sub) claims.sub = 'testuser';
     if (!claims.config_permissions) {
       claims.config_permissions = [
-        { path: '/config', actions: ['read', 'write', 'list'] }
+        { path: '/config', actions: ['read', 'write', 'list'] },
       ];
     }
 
     const token = await generateToken(claims);
     res.writeHead(200, { 'Content-Type': 'application/json' });
-    res.end(JSON.stringify({
-      access_token: token,
-      token_type: 'Bearer',
-      expires_in: 3600,
-    }));
+    res.end(
+      JSON.stringify({
+        access_token: token,
+        token_type: 'Bearer',
+        expires_in: 3600,
+      }),
+    );
     return;
   }
 

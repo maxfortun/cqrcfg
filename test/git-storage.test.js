@@ -56,7 +56,7 @@ describe('Git Storage (local mode)', async () => {
     const results = await storage.getByPrefix('/config/app1');
 
     assert.strictEqual(results.length, 2);
-    const paths = results.map(r => r.path);
+    const paths = results.map((r) => r.path);
     assert.ok(paths.includes('/config/app1/db'));
     assert.ok(paths.includes('/config/app1/cache'));
   });
@@ -161,16 +161,22 @@ describe('Git Storage (local mode)', async () => {
     await storage.upsert('/config/app1/db', { host: 'localhost', port: 5432 });
 
     // Matching filter
-    const match = await storage.getByPathWithFilter('/config/app1/db', { host: 'localhost' });
+    const match = await storage.getByPathWithFilter('/config/app1/db', {
+      host: 'localhost',
+    });
     assert.ok(match);
     assert.strictEqual(match.data.host, 'localhost');
 
     // Non-matching filter
-    const noMatch = await storage.getByPathWithFilter('/config/app1/db', { host: 'remotehost' });
+    const noMatch = await storage.getByPathWithFilter('/config/app1/db', {
+      host: 'remotehost',
+    });
     assert.strictEqual(noMatch, null);
 
     // Numeric filter
-    const numMatch = await storage.getByPathWithFilter('/config/app1/db', { port: '5432' });
+    const numMatch = await storage.getByPathWithFilter('/config/app1/db', {
+      port: '5432',
+    });
     assert.ok(numMatch);
   });
 
@@ -202,16 +208,28 @@ describe('Git Storage (with remote simulation)', async () => {
     // Create a bare repo to act as remote
     bareRepoDir = join(tmpdir(), `cqrcfg-git-bare-${randomUUID()}`);
     await mkdir(bareRepoDir, { recursive: true });
-    await execFileAsync('git', ['init', '--bare', '--initial-branch=main'], { cwd: bareRepoDir });
+    await execFileAsync('git', ['init', '--bare', '--initial-branch=main'], {
+      cwd: bareRepoDir,
+    });
 
     // Initialize with an empty commit so we have a main branch
     const initDir = join(tmpdir(), `cqrcfg-git-init-${randomUUID()}`);
     await execFileAsync('git', ['clone', bareRepoDir, initDir]);
-    await execFileAsync('git', ['config', 'user.email', 'test@test.com'], { cwd: initDir });
-    await execFileAsync('git', ['config', 'user.name', 'Test'], { cwd: initDir });
+    await execFileAsync('git', ['config', 'user.email', 'test@test.com'], {
+      cwd: initDir,
+    });
+    await execFileAsync('git', ['config', 'user.name', 'Test'], {
+      cwd: initDir,
+    });
     await execFileAsync('git', ['checkout', '-b', 'main'], { cwd: initDir });
-    await execFileAsync('git', ['commit', '--allow-empty', '-m', 'Initial commit'], { cwd: initDir });
-    await execFileAsync('git', ['push', '-u', 'origin', 'main'], { cwd: initDir });
+    await execFileAsync(
+      'git',
+      ['commit', '--allow-empty', '-m', 'Initial commit'],
+      { cwd: initDir },
+    );
+    await execFileAsync('git', ['push', '-u', 'origin', 'main'], {
+      cwd: initDir,
+    });
     await rm(initDir, { recursive: true, force: true });
 
     // Create two storage instances pointing to same remote
@@ -326,7 +344,10 @@ describe('Git Storage (with encryption)', async () => {
     const rawContent = await readFile(filePath, 'utf8');
 
     // Should be base64-encoded and start with Salted__ when decoded
-    assert.ok(!rawContent.includes('my-api-key-12345'), 'Raw content should not contain plaintext');
+    assert.ok(
+      !rawContent.includes('my-api-key-12345'),
+      'Raw content should not contain plaintext',
+    );
     const decoded = Buffer.from(rawContent.trim(), 'base64');
     assert.strictEqual(decoded.subarray(0, 8).toString(), 'Salted__');
   });
@@ -337,7 +358,7 @@ describe('Git Storage (with encryption)', async () => {
 
     const results = await storage.getByPrefix('/config/enc');
     assert.strictEqual(results.length, 2);
-    const values = results.map(r => r.data.value).sort();
+    const values = results.map((r) => r.data.value).sort();
     assert.deepStrictEqual(values, ['a', 'b']);
   });
 
@@ -351,13 +372,20 @@ describe('Git Storage (with encryption)', async () => {
   });
 
   it('should work with getByPathWithFilter on encrypted data', async () => {
-    await storage.upsert('/config/filter/test', { host: 'localhost', port: 5432 });
+    await storage.upsert('/config/filter/test', {
+      host: 'localhost',
+      port: 5432,
+    });
 
-    const match = await storage.getByPathWithFilter('/config/filter/test', { host: 'localhost' });
+    const match = await storage.getByPathWithFilter('/config/filter/test', {
+      host: 'localhost',
+    });
     assert.ok(match);
     assert.strictEqual(match.data.port, 5432);
 
-    const noMatch = await storage.getByPathWithFilter('/config/filter/test', { host: 'remote' });
+    const noMatch = await storage.getByPathWithFilter('/config/filter/test', {
+      host: 'remote',
+    });
     assert.strictEqual(noMatch, null);
   });
 });

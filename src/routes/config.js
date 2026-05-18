@@ -39,7 +39,10 @@ async function checkAuthz(request, reply, requiredAction) {
 
   const hasAccess = permissions.some((perm) => {
     // Check if permission path is a valid prefix of the requested path
-    if (perm.path !== requestedPath && !requestedPath.startsWith(perm.path + '/')) {
+    if (
+      perm.path !== requestedPath &&
+      !requestedPath.startsWith(perm.path + '/')
+    ) {
       return false;
     }
     const actions = perm.actions || [];
@@ -80,56 +83,60 @@ export default async function configRoutes(fastify) {
   //   - Supports wildcards: * (single segment), ** (multi-segment), ? (single char)
   //   - Example: GET /config/app*/db/ matches /config/app1/db and /config/app2/db
   // Otherwise, returns the full JSON subtree (requires 'read' permission)
-  fastify.get('/*', {
-    preHandler: [authHook, normalizePathHook],
-  }, async (request, reply) => {
-    const path = request.configPath;
-    const originalUrl = request.url;
+  fastify.get(
+    '/*',
+    {
+      preHandler: [authHook, normalizePathHook],
+    },
+    async (request, reply) => {
+      const path = request.configPath;
+      const originalUrl = request.url;
 
-    // Check if this is a LIST request (path ends with /)
-    const isListRequest = originalUrl.endsWith('/');
+      // Check if this is a LIST request (path ends with /)
+      const isListRequest = originalUrl.endsWith('/');
 
-    if (isListRequest) {
-      // Check list permission
-      const authzResult = await checkAuthz(request, reply, 'list');
-      if (authzResult === false) return;
+      if (isListRequest) {
+        // Check list permission
+        const authzResult = await checkAuthz(request, reply, 'list');
+        if (authzResult === false) return;
 
-      let paths;
+        let paths;
 
-      // Check for wildcard search - pattern conversion happens in storage layer
-      if (hasWildcard(path)) {
-        paths = await searchPaths(path);
+        // Check for wildcard search - pattern conversion happens in storage layer
+        if (hasWildcard(path)) {
+          paths = await searchPaths(path);
+        } else {
+          paths = await listPaths(path);
+        }
+
+        return { keys: paths };
       } else {
-        paths = await listPaths(path);
+        // Check read permission
+        const authzResult = await checkAuthz(request, reply, 'read');
+        if (authzResult === false) return;
+
+        // Apply query parameter filters at storage layer if any
+        const filters = request.query;
+        const hasFilters = filters && Object.keys(filters).length > 0;
+
+        const tree = hasFilters
+          ? await getSubtreeWithFilter(path, filters)
+          : await getSubtree(path);
+
+        if (tree === null) {
+          const message = hasFilters
+            ? `Configuration at path ${path} does not match filter criteria`
+            : `No configuration found at path: ${path}`;
+          return reply.code(404).send({
+            error: 'Not Found',
+            message,
+          });
+        }
+
+        return tree;
       }
-
-      return { keys: paths };
-    } else {
-      // Check read permission
-      const authzResult = await checkAuthz(request, reply, 'read');
-      if (authzResult === false) return;
-
-      // Apply query parameter filters at storage layer if any
-      const filters = request.query;
-      const hasFilters = filters && Object.keys(filters).length > 0;
-
-      const tree = hasFilters
-        ? await getSubtreeWithFilter(path, filters)
-        : await getSubtree(path);
-
-      if (tree === null) {
-        const message = hasFilters
-          ? `Configuration at path ${path} does not match filter criteria`
-          : `No configuration found at path: ${path}`;
-        return reply.code(404).send({
-          error: 'Not Found',
-          message,
-        });
-      }
-
-      return tree;
-    }
-  });
+    },
+  );
 
   // Shared handler for POST and PATCH - both do merge (preserve missing values)
   async function mergeHandler(request, reply) {
@@ -204,17 +211,25 @@ export default async function configRoutes(fastify) {
    * Default: data from request body
    * With ?from=/other/path: merge from another config path
    */
-  fastify.post('/*', {
-    preHandler: [authHook, normalizePathHook],
-  }, mergeHandler);
+  fastify.post(
+    '/*',
+    {
+      preHandler: [authHook, normalizePathHook],
+    },
+    mergeHandler,
+  );
 
   /**
    * PATCH /config/*
    * Same as POST - merge partial data (preserve missing values)
    */
-  fastify.patch('/*', {
-    preHandler: [authHook, normalizePathHook],
-  }, mergeHandler);
+  fastify.patch(
+    '/*',
+    {
+      preHandler: [authHook, normalizePathHook],
+    },
+    mergeHandler,
+  );
 
   /**
    * PUT /config/*
@@ -223,94 +238,102 @@ export default async function configRoutes(fastify) {
    * Default: data from request body
    * With ?from=/other/path: clone from another config path
    */
-  fastify.put('/*', {
-    preHandler: [authHook, normalizePathHook],
-  }, async (request, reply) => {
-    const destPath = request.configPath;
-    const { from } = request.query;
+  fastify.put(
+    '/*',
+    {
+      preHandler: [authHook, normalizePathHook],
+    },
+    async (request, reply) => {
+      const destPath = request.configPath;
+      const { from } = request.query;
 
-    // Check write permission on destination
-    if (!checkAuthzForPath(request.user, destPath, 'write')) {
-      return reply.code(403).send({
-        error: 'Forbidden',
-        message: `Access denied: no write permission for path ${destPath}`,
-      });
-    }
-
-    let data;
-
-    if (from) {
-      // Clone from another path
-      const normalizedSource = from.startsWith('/config')
-        ? from
-        : `/config${from.startsWith('/') ? '' : '/'}${from}`;
-
-      if (normalizedSource === destPath) {
-        return reply.code(400).send({
-          error: 'Bad Request',
-          message: 'Source and destination paths must be different',
-        });
-      }
-
-      // Check read permission on source
-      if (!checkAuthzForPath(request.user, normalizedSource, 'read')) {
+      // Check write permission on destination
+      if (!checkAuthzForPath(request.user, destPath, 'write')) {
         return reply.code(403).send({
           error: 'Forbidden',
-          message: `Access denied: no read permission for source path ${normalizedSource}`,
+          message: `Access denied: no write permission for path ${destPath}`,
         });
       }
 
-      // Get source config
-      data = await getSubtree(normalizedSource);
+      let data;
 
-      if (data === null) {
-        return reply.code(404).send({
-          error: 'Not Found',
-          message: `No configuration found at source path: ${normalizedSource}`,
-        });
+      if (from) {
+        // Clone from another path
+        const normalizedSource = from.startsWith('/config')
+          ? from
+          : `/config${from.startsWith('/') ? '' : '/'}${from}`;
+
+        if (normalizedSource === destPath) {
+          return reply.code(400).send({
+            error: 'Bad Request',
+            message: 'Source and destination paths must be different',
+          });
+        }
+
+        // Check read permission on source
+        if (!checkAuthzForPath(request.user, normalizedSource, 'read')) {
+          return reply.code(403).send({
+            error: 'Forbidden',
+            message: `Access denied: no read permission for source path ${normalizedSource}`,
+          });
+        }
+
+        // Get source config
+        data = await getSubtree(normalizedSource);
+
+        if (data === null) {
+          return reply.code(404).send({
+            error: 'Not Found',
+            message: `No configuration found at source path: ${normalizedSource}`,
+          });
+        }
+      } else {
+        // Default: data from body
+        data = request.body;
+
+        if (!data || typeof data !== 'object' || Array.isArray(data)) {
+          return reply.code(400).send({
+            error: 'Bad Request',
+            message: 'Request body must be a JSON object',
+          });
+        }
       }
-    } else {
-      // Default: data from body
-      data = request.body;
 
-      if (!data || typeof data !== 'object' || Array.isArray(data)) {
-        return reply.code(400).send({
-          error: 'Bad Request',
-          message: 'Request body must be a JSON object',
-        });
-      }
-    }
+      const result = await putNode(destPath, data, getAuthorOptions(request));
 
-    const result = await putNode(destPath, data, getAuthorOptions(request));
-
-    return {
-      path: destPath,
-      data: result,
-      message: 'Configuration replaced successfully',
-    };
-  });
+      return {
+        path: destPath,
+        data: result,
+        message: 'Configuration replaced successfully',
+      };
+    },
+  );
 
   /**
    * DELETE /config/*
    * Delete all documents under the specified path prefix
    */
-  fastify.delete('/*', {
-    preHandler: [...commonHooks, authzHook('write')],
-  }, async (request, reply) => {
-    const path = request.configPath;
-    const deletedCount = await deleteSubtree(path, getAuthorOptions(request));
+  fastify.delete(
+    '/*',
+    {
+      preHandler: [...commonHooks, authzHook('write')],
+    },
+    async (request, reply) => {
+      const path = request.configPath;
+      const deletedCount = await deleteSubtree(path, getAuthorOptions(request));
 
-    if (deletedCount === 0) {
-      return reply.code(404).send({
-        error: 'Not Found',
-        message: `No configuration found at path: ${path}`,
-      });
-    }
+      if (deletedCount === 0) {
+        return reply.code(404).send({
+          error: 'Not Found',
+          message: `No configuration found at path: ${path}`,
+        });
+      }
 
-    return {
-      path,
-      deletedCount,
-      message: 'Configuration deleted successfully',
-    };
-  });
+      return {
+        path,
+        deletedCount,
+        message: 'Configuration deleted successfully',
+      };
+    },
+  );
 }
