@@ -181,12 +181,35 @@ function getJwtVerifyOptions() {
 }
 
 /**
+ * Verify a JWT, falling back to trying each key individually when
+ * the JWKS contains multiple matching keys (e.g. same kid or no kid).
+ */
+async function verifyJwtWithFallback(token, keySet, options) {
+  try {
+    return await jose.jwtVerify(token, keySet, options);
+  } catch (error) {
+    if (!error.message?.includes('multiple matching keys')) throw error;
+
+    for (const jwk of jwksKeys) {
+      try {
+        const key = await jose.importJWK(jwk, jwk.alg);
+        return await jose.jwtVerify(token, key, options);
+      } catch {
+        // Try next key
+      }
+    }
+
+    throw error;
+  }
+}
+
+/**
  * Parse and verify a JWT header value, returning the payload claims
  */
 async function parseJwtHeaderValue(headerValue, keySet) {
   if (!headerValue) return null;
 
-  const { payload } = await jose.jwtVerify(headerValue, keySet, getJwtVerifyOptions());
+  const { payload } = await verifyJwtWithFallback(headerValue, keySet, getJwtVerifyOptions());
   return payload;
 }
 
@@ -259,7 +282,7 @@ export async function authHook(request, reply) {
 
   try {
     const keySet = await getJWKS();
-    const { payload } = await jose.jwtVerify(token, keySet, getJwtVerifyOptions());
+    const { payload } = await verifyJwtWithFallback(token, keySet, getJwtVerifyOptions());
 
     // Check for claims in separate headers (e.g., from a proxy that extracts id_token claims)
     // JWT-format headers are verified, JSON/base64 headers are parsed directly

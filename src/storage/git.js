@@ -80,17 +80,32 @@ export class GitStorage extends StorageInterface {
         console.log(`Git repo exists at ${this.localPath}`);
 
         if (this._hasRemote()) {
-          // Fetch and reset to remote
-          await this._git(['fetch', 'origin', this.branch]);
-          await this._git(['reset', '--hard', `origin/${this.branch}`]);
+          // Fetch and reset to remote (branch may not exist yet on empty repos)
+          try {
+            await this._git(['fetch', 'origin', this.branch]);
+            await this._git(['reset', '--hard', `origin/${this.branch}`]);
+          } catch (fetchErr) {
+            if (fetchErr.message.includes("couldn't find remote ref")) {
+              await this._git(['checkout', '-b', this.branch]).catch(() => {});
+              console.log(`Remote branch ${this.branch} not found, using local branch`);
+            } else {
+              throw fetchErr;
+            }
+          }
         }
       } catch (err) {
         if (err.code === 'ENOENT') {
           if (this._hasRemote()) {
-            // Clone the repo
-            await mkdir(this.localPath, { recursive: true });
-            await this._gitRaw(['clone', '--branch', this.branch, this.remoteUrl, this.localPath]);
-            console.log(`Cloned git repo from ${this.remoteUrl}`);
+            try {
+              await this._gitRaw(['clone', '--branch', this.branch, this.remoteUrl, this.localPath]);
+              console.log(`Cloned git repo from ${this.remoteUrl}`);
+            } catch (cloneErr) {
+              // Remote repo may be empty — clean up failed clone, then retry without branch
+              await rm(this.localPath, { recursive: true, force: true });
+              await this._gitRaw(['clone', this.remoteUrl, this.localPath]);
+              await this._git(['checkout', '-b', this.branch]);
+              console.log(`Cloned empty repo from ${this.remoteUrl}, created branch ${this.branch}`);
+            }
           } else {
             // Initialize local repo without remote
             await mkdir(this.localPath, { recursive: true });

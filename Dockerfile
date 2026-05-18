@@ -7,7 +7,7 @@ WORKDIR /app
 COPY package*.json ./
 
 # Install all dependencies (including optional)
-RUN npm install
+RUN npm ci --registry=https://registry.npmjs.org/
 
 # Production stage
 FROM node:20-alpine
@@ -28,9 +28,8 @@ COPY package*.json ./
 
 # Install production dependencies only
 # Use --ignore-scripts to avoid potential issues with native modules
-RUN npm install --omit=dev --ignore-scripts && \
+RUN npm ci --omit=dev --ignore-scripts --registry=https://registry.npmjs.org/ && \
     npm cache clean --force
-
 # Copy source code
 COPY src/ ./src/
 

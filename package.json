@@ -10,6 +10,7 @@
     "ui": "npm --prefix ui run dev",
     "ui:build": "npm --prefix ui run build",
     "ui:install": "npm --prefix ui install",
+    "oidc": "npm --prefix mock-oidc start",
     "test": "node --test test/**/*.test.js",
     "test:docker:up": "docker compose -f docker-compose.test.yml up -d",
     "test:docker:down": "docker compose -f docker-compose.test.yml down -v",
