@@ -6,3 +6,4 @@ node_modules/
 .mcp.json
 cqrcfg_deploy_key*
 *.code-workspace
+deploy_keys/

@@ -17,6 +17,8 @@ export class GitStorage extends StorageInterface {
     this.pullInterval = options.pullInterval || 30000; // 30 seconds default
     this.userName = options.userName || 'cqrcfg';
     this.userEmail = options.userEmail || 'cqrcfg@localhost';
+    this.commitNameClaim = options.commitNameClaim || '';
+    this.commitEmailClaim = options.commitEmailClaim || '';
 
     // Encryption settings (optional)
     const encryption = options.encryption || {};
@@ -26,6 +28,26 @@ export class GitStorage extends StorageInterface {
     // Mutex for git operations
     this.operationQueue = Promise.resolve();
     this.lastPull = 0;
+  }
+
+  extractAuthorFromClaims(claims) {
+    if (!claims || !this.commitNameClaim || !this.commitEmailClaim) return null;
+
+    const name = this._getNestedValue(claims, this.commitNameClaim);
+    const email = this._getNestedValue(claims, this.commitEmailClaim);
+    if (!name || !email) return null;
+
+    return { name, email };
+  }
+
+  _getNestedValue(obj, path) {
+    const parts = path.split('.');
+    let current = obj;
+    for (const part of parts) {
+      if (current === null || current === undefined) return undefined;
+      current = current[part];
+    }
+    return current;
   }
 
   _isEncryptionEnabled() {
@@ -183,7 +205,12 @@ export class GitStorage extends StorageInterface {
     }
   }
 
-  async _commitAndPush(message) {
+  _resolveAuthor(author) {
+    if (author) return `${author.name} <${author.email}>`;
+    return this.commitAuthor;
+  }
+
+  async _commitAndPush(message, author) {
     // Stage all changes
     await this._git(['add', '-A']);
 
@@ -196,7 +223,7 @@ export class GitStorage extends StorageInterface {
     }
 
     // Commit
-    await this._git(['commit', '-m', message, '--author', this.commitAuthor]);
+    await this._git(['commit', '-m', message, '--author', this._resolveAuthor(author)]);
 
     // Skip push if no remote configured
     if (!this._hasRemote()) return;
@@ -333,7 +360,7 @@ export class GitStorage extends StorageInterface {
     return doc;
   }
 
-  async upsert(path, data) {
+  async upsert(path, data, options = {}) {
     return this._withLock(async () => {
       await this._pullIfNeeded();
 
@@ -343,11 +370,11 @@ export class GitStorage extends StorageInterface {
         updatedAt: new Date().toISOString(),
       });
 
-      await this._commitAndPush(`Update ${path}`);
+      await this._commitAndPush(`Update ${path}`, options.author);
     });
   }
 
-  async deleteByPrefix(pathPrefix) {
+  async deleteByPrefix(pathPrefix, options = {}) {
     return this._withLock(async () => {
       await this._pullIfNeeded();
 
@@ -365,7 +392,7 @@ export class GitStorage extends StorageInterface {
       }
 
       if (deletedCount > 0) {
-        await this._commitAndPush(`Delete ${pathPrefix}`);
+        await this._commitAndPush(`Delete ${pathPrefix}`, options.author);
       }
 
       return deletedCount;
