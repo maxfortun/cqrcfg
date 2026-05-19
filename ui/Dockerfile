@@ -4,7 +4,7 @@ FROM node:20-alpine AS builder
 WORKDIR /app
 
 COPY package*.json ./
-RUN npm install --registry=https://registry.npmjs.org/
+RUN npm install
 
 COPY . .
 RUN npm run build
@@ -16,7 +16,7 @@ WORKDIR /app
 
 # Copy package files and install production dependencies
 COPY package*.json ./
-RUN npm install --omit=dev --registry=https://registry.npmjs.org/
+RUN npm install --omit=dev
 
 # Copy built assets and server
 COPY --from=builder /app/dist ./dist

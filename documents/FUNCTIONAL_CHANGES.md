@@ -209,22 +209,12 @@ Update function signatures to pass options through:
 
 ---
 
-## 4. Dockerfile Changes: Use `npm ci` with Explicit Registry
+## 4. Dockerfile Changes: Use `npm ci`
 
 **File:** `Dockerfile`
 
-- Replace `RUN npm install` with `RUN npm ci --registry=https://registry.npmjs.org/`
-- Replace `RUN npm install --omit=dev --ignore-scripts` with `RUN npm ci --omit=dev --ignore-scripts --registry=https://registry.npmjs.org/`
-
-**File:** `mock-oidc/Dockerfile`
-
-- Replace `RUN npm install` with `RUN npm install --registry=https://registry.npmjs.org/`
-
-**File:** `ui/Dockerfile`
-
-- Replace both `RUN npm install` and `RUN npm install --omit=dev` with registry-explicit versions:
-  - `RUN npm install --registry=https://registry.npmjs.org/`
-  - `RUN npm install --omit=dev --registry=https://registry.npmjs.org/`
+- Replace `RUN npm install` with `RUN npm ci`
+- Replace `RUN npm install --omit=dev --ignore-scripts` with `RUN npm ci --omit=dev --ignore-scripts`
 
 ---
 
@@ -387,7 +377,7 @@ deploy_keys/
 | Bug Fix | Git storage handles empty/missing remote branches gracefully |
 | Bug Fix | Deploy key JSON path correction (`.deploy_key` not `.local.deploy_key`) |
 | Feature | Author claims extracted from JWT for git commit attribution |
-| DevOps | Dockerfiles use `npm ci` with explicit registry |
+| DevOps | Dockerfiles use `npm ci` |
 | DevOps | New `docker-compose-mongo.yml` for MongoDB-only dev setup |
 | DevOps | New `entrypoint.sh` for AWS deploy key installation |
 | DevOps | New npm scripts (`oidc`, mock-oidc `start`) |
