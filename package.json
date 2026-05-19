@@ -7,6 +7,7 @@
   "scripts": {
     "start": "node src/index.js",
     "dev": "node --watch src/index.js",
+    "oidc": "npm --prefix mock-oidc start",
     "ui": "npm --prefix ui run dev",
     "ui:build": "npm --prefix ui run build",
     "ui:install": "npm --prefix ui install",

@@ -30,6 +30,8 @@ export const config = {
       pullInterval: parseInt(process.env.GIT_PULL_INTERVAL, 10) || 30000,
       userName: process.env.GIT_USER_NAME || 'cqrcfg',
       userEmail: process.env.GIT_USER_EMAIL || 'cqrcfg@localhost',
+      commitNameClaim: process.env.GIT_COMMIT_NAME_CLAIM || '',
+      commitEmailClaim: process.env.GIT_COMMIT_EMAIL_CLAIM || '',
       encryption: {
         salt: process.env.GIT_ENCRYPTION_SALT || '',
         password: process.env.GIT_ENCRYPTION_PASSWORD || '',

@@ -13,7 +13,7 @@ const API_URL = process.env.API_URL || 'http://cqrcfg:3000';
 
 // Runtime config from environment
 const runtimeConfig = `window.__CQRCFG_ENV__ = '${process.env.UI_ENV || ''}';
-window.__CQRCFG_API_URL__ = '${process.env.UI_API_URL || '/api'}';
+window.__CQRCFG_API_URL__ = '${process.env.UI_API_URL || 'http://localhost:3000/api'}';
 window.__CQRCFG_AUTH_HEADER__ = '${process.env.UI_AUTH_HEADER || ''}';
 window.__CQRCFG_AUTH_PATTERN__ = '${process.env.UI_AUTH_PATTERN || ''}';
 window.__CQRCFG_NAME_CLAIM__ = '${process.env.UI_NAME_CLAIM || 'sub'}';
