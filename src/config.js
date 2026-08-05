@@ -32,6 +32,7 @@ export const config = {
       userEmail: process.env.GIT_USER_EMAIL || 'cqrcfg@localhost',
       commitNameClaim: process.env.GIT_COMMIT_NAME_CLAIM || '',
       commitEmailClaim: process.env.GIT_COMMIT_EMAIL_CLAIM || '',
+      promotionBranch: process.env.GIT_PROMOTION_BRANCH || '',
       encryption: {
         salt: process.env.GIT_ENCRYPTION_SALT || '',
         password: process.env.GIT_ENCRYPTION_PASSWORD || '',
@@ -46,7 +47,25 @@ export const config = {
         : ['localhost:9092'],
       topic: process.env.KAFKA_TOPIC || 'cqrcfg-changes',
       clientId: process.env.KAFKA_CLIENT_ID || 'cqrcfg',
-      groupId: process.env.KAFKA_GROUP_ID || 'cqrcfg-group',
+      groupId: [
+        process.env.KAFKA_GROUP_ID_PREFIX || 'cqrcfg',
+        process.env.KAFKA_GROUP_ID_SUFFIX,
+      ].filter(Boolean).join('-'),
+      ssl: {
+        enabled: process.env.KAFKA_SSL === 'true',
+        rejectUnauthorized: process.env.KAFKA_SSL_REJECT_UNAUTHORIZED !== 'false',
+        ca: process.env.KAFKA_SSL_CA || '',
+        key: process.env.KAFKA_SSL_KEY || '',
+        cert: process.env.KAFKA_SSL_CERT || '',
+      },
+      sasl: {
+        mechanism: process.env.KAFKA_SASL_MECHANISM || '',
+        username: process.env.KAFKA_SASL_USERNAME || '',
+        password: process.env.KAFKA_SASL_PASSWORD || '',
+        clientId: process.env.KAFKA_SASL_CLIENT_ID || '',
+        clientSecret: process.env.KAFKA_SASL_CLIENT_SECRET || '',
+        tokenUri: process.env.KAFKA_SASL_TOKEN_URI || '',
+      },
     },
     amqp: {
       url: process.env.AMQP_URL || 'amqp://localhost',

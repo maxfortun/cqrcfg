@@ -1,5 +1,7 @@
 import { LRUCache } from 'lru-cache';
+import { JSONPath } from 'jsonpath-plus';
 import { getStorage } from '../storage/index.js';
+import { matchesFilter } from '../storage/interface.js';
 import { buildTree, deepMerge } from '../utils/tree.js';
 import { notifyChange } from './notificationService.js';
 import { config } from '../config.js';
@@ -41,7 +43,7 @@ function getCache() {
 const CACHE_SUBTREE = 'subtree:';
 const CACHE_LIST = 'list:';
 
-function invalidateCacheForPath(path) {
+export function invalidateCacheForPath(path) {
   const c = getCache();
   if (!c) return;
 
@@ -90,6 +92,19 @@ export async function getSubtree(basePath) {
   return result;
 }
 
+export async function getNode(path) {
+  const backend = getStorage();
+  const doc = await backend.getByPath(path);
+  if (!doc) return null;
+
+  return {
+    path: doc.path,
+    data: doc.data,
+    updatedAt: doc.updatedAt,
+    revision: doc.revision || null,
+  };
+}
+
 export async function listPaths(basePath) {
   const c = getCache();
   const cacheKey = CACHE_LIST + basePath;
@@ -124,13 +139,39 @@ export async function searchPaths(pattern) {
 export async function getSubtreeWithFilter(basePath, filters) {
   // Filtered queries are not cached since filter combinations vary widely
   const backend = getStorage();
-  const doc = await backend.getByPathWithFilter(basePath, filters);
+  const docs = await backend.getByPrefix(basePath);
 
-  if (!doc) {
+  if (docs.length === 0) {
     return null;
   }
 
-  return doc.data;
+  const matched = docs.filter(doc => matchesFilter(doc.data, filters));
+
+  if (matched.length === 0) {
+    return null;
+  }
+
+  return buildTree(matched, basePath);
+}
+
+export async function getSubtreeWithJsonPath(basePath, jsonPathExpr) {
+  const backend = getStorage();
+  const docs = await backend.getByPrefix(basePath);
+
+  if (docs.length === 0) {
+    return null;
+  }
+
+  const matched = docs.filter(doc => {
+    const results = JSONPath({ path: jsonPathExpr, json: doc.data });
+    return results.length > 0;
+  });
+
+  if (matched.length === 0) {
+    return null;
+  }
+
+  return buildTree(matched, basePath);
 }
 
 export async function patchNode(path, data, options = {}) {
@@ -139,13 +180,16 @@ export async function patchNode(path, data, options = {}) {
 
   let result;
   let operation;
+  let revision = null;
 
   if (existing) {
     result = deepMerge(existing.data, data);
-    await backend.upsert(path, result, options);
+    const upsertResult = await backend.upsert(path, result, options);
+    revision = upsertResult?.revision || null;
     operation = 'update';
   } else {
-    await backend.upsert(path, data, options);
+    const upsertResult = await backend.upsert(path, data, options);
+    revision = upsertResult?.revision || null;
     result = data;
     operation = 'insert';
   }
@@ -154,25 +198,26 @@ export async function patchNode(path, data, options = {}) {
   invalidateCacheForPath(path);
 
   // Publish notification
-  await notifyChange(operation, path, result);
+  await notifyChange(operation, path, result, revision);
 
-  return result;
+  return { data: result, revision };
 }
 
 export async function putNode(path, data, options = {}) {
   const backend = getStorage();
   const existing = await backend.getByPath(path);
 
-  await backend.upsert(path, data, options);
+  const upsertResult = await backend.upsert(path, data, options);
+  const revision = upsertResult?.revision || null;
 
   // Invalidate cache for affected paths
   invalidateCacheForPath(path);
 
   // Publish notification
   const operation = existing ? 'update' : 'insert';
-  await notifyChange(operation, path, data);
+  await notifyChange(operation, path, data, revision);
 
-  return data;
+  return { data, revision };
 }
 
 export async function deleteSubtree(basePath, options = {}) {
@@ -193,6 +238,22 @@ export async function deleteSubtree(basePath, options = {}) {
   }
 
   return count;
+}
+
+export async function promoteNode(path, options = {}) {
+  const backend = getStorage();
+  const targetBranch = config.storage.git.promotionBranch;
+
+  if (!targetBranch) {
+    const err = new Error('Promotion branch is not configured (GIT_PROMOTION_BRANCH is not set)');
+    err.code = 'PROMOTION_NOT_CONFIGURED';
+    throw err;
+  }
+
+  await backend.promote(path, targetBranch, options);
+  await notifyChange('promoted', path);
+
+  return { path, targetBranch };
 }
 
 // Export for testing/monitoring

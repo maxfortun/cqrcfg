@@ -4,12 +4,16 @@ import { normalizePathHook } from '../middleware/normalizePath.js';
 import {
   getSubtree,
   getSubtreeWithFilter,
+  getSubtreeWithJsonPath,
+  getNode,
   listPaths,
   searchPaths,
   patchNode,
   putNode,
   deleteSubtree,
+  promoteNode,
 } from '../services/configService.js';
+import { ConflictError } from '../storage/interface.js';
 import { hasWildcard } from '../storage/interface.js';
 import { getStorage } from '../storage/index.js';
 
@@ -18,6 +22,10 @@ function getAuthorOptions(request) {
   if (!storage.extractAuthorFromClaims) return {};
   const author = storage.extractAuthorFromClaims(request.user?.claims);
   return author ? { author } : {};
+}
+
+function getExpectedRevision(request) {
+  return request.query?.rev || undefined;
 }
 
 /**
@@ -75,14 +83,12 @@ export default async function configRoutes(fastify) {
   // Common preHandler hooks for all routes
   const commonHooks = [authHook, normalizePathHook];
 
-  // GET /config/*
+  // GET /config and GET /config/*
   // If path ends with '/', returns list of paths (requires 'list' permission)
   //   - Supports wildcards: * (single segment), ** (multi-segment), ? (single char)
   //   - Example: GET /config/app*/db/ matches /config/app1/db and /config/app2/db
   // Otherwise, returns the full JSON subtree (requires 'read' permission)
-  fastify.get('/*', {
-    preHandler: [authHook, normalizePathHook],
-  }, async (request, reply) => {
+  async function getHandler(request, reply) {
     const path = request.configPath;
     const originalUrl = request.url;
 
@@ -109,27 +115,78 @@ export default async function configRoutes(fastify) {
       const authzResult = await checkAuthz(request, reply, 'read');
       if (authzResult === false) return;
 
+      const { jsonPath, rev, ...filters } = request.query || {};
+
+      // jsonPath is mutually exclusive with key-value filters
+      if (jsonPath !== undefined) {
+        if (Object.keys(filters).length > 0) {
+          return reply.code(400).send({
+            error: 'Bad Request',
+            message: 'The jsonPath parameter cannot be combined with key-value filter parameters',
+          });
+        }
+
+        if (!jsonPath || typeof jsonPath !== 'string') {
+          return reply.code(400).send({
+            error: 'Bad Request',
+            message: 'The jsonPath parameter must be a non-empty string',
+          });
+        }
+
+        let tree;
+        try {
+          tree = await getSubtreeWithJsonPath(path, jsonPath);
+        } catch (err) {
+          return reply.code(400).send({
+            error: 'Bad Request',
+            message: `Invalid JSONPath expression: ${jsonPath} — ${err.message}`,
+          });
+        }
+
+        if (tree === null) {
+          return reply.code(404).send({
+            error: 'Not Found',
+            message: `No configuration found at path ${path} matching JSONPath: ${jsonPath}`,
+          });
+        }
+
+        return tree;
+      }
+
       // Apply query parameter filters at storage layer if any
-      const filters = request.query;
-      const hasFilters = filters && Object.keys(filters).length > 0;
+      const hasFilters = Object.keys(filters).length > 0;
 
-      const tree = hasFilters
-        ? await getSubtreeWithFilter(path, filters)
-        : await getSubtree(path);
+      if (hasFilters) {
+        const tree = await getSubtreeWithFilter(path, filters);
+        if (tree === null) {
+          return reply.code(404).send({
+            error: 'Not Found',
+            message: `Configuration at path ${path} does not match filter criteria`,
+          });
+        }
+        return tree;
+      }
 
+      // For non-filtered reads, try to get the single node first (includes revision)
+      const node = await getNode(path);
+      if (node && node.revision) {
+        reply.header('cqrcfg-revision', node.revision);
+      }
+
+      const tree = await getSubtree(path);
       if (tree === null) {
-        const message = hasFilters
-          ? `Configuration at path ${path} does not match filter criteria`
-          : `No configuration found at path: ${path}`;
         return reply.code(404).send({
           error: 'Not Found',
-          message,
+          message: `No configuration found at path: ${path}`,
         });
       }
 
       return tree;
     }
-  });
+  }
+
+  fastify.get('/', { preHandler: [authHook, normalizePathHook] }, getHandler);
+  fastify.get('/*', { preHandler: [authHook, normalizePathHook] }, getHandler);
 
   // Shared handler for POST and PATCH - both do merge (preserve missing values)
   async function mergeHandler(request, reply) {
@@ -188,13 +245,34 @@ export default async function configRoutes(fastify) {
       }
     }
 
-    const result = await patchNode(destPath, data, getAuthorOptions(request));
-
-    return {
-      path: destPath,
-      data: result,
-      message: 'Configuration merged successfully',
+    const options = {
+      ...getAuthorOptions(request),
+      expectedRevision: getExpectedRevision(request),
     };
+
+    try {
+      const result = await patchNode(destPath, data, options);
+
+      if (result.revision) {
+        reply.header('cqrcfg-revision', result.revision);
+      }
+
+      return {
+        path: destPath,
+        data: result.data,
+        revision: result.revision,
+        message: 'Configuration merged successfully',
+      };
+    } catch (err) {
+      if (err instanceof ConflictError) {
+        return reply.code(409).send({
+          error: 'Conflict',
+          message: err.message,
+          currentRevision: err.currentRevision,
+        });
+      }
+      throw err;
+    }
   }
 
   /**
@@ -203,10 +281,40 @@ export default async function configRoutes(fastify) {
    *
    * Default: data from request body
    * With ?from=/other/path: merge from another config path
+   *
+   * Special case: POST /config/.../promote — promotes config to the promotion branch
    */
   fastify.post('/*', {
     preHandler: [authHook, normalizePathHook],
-  }, mergeHandler);
+  }, async (request, reply) => {
+    // Handle promote action when path ends with /promote
+    if (request.configPath.endsWith('/promote')) {
+      request.configPath = request.configPath.replace(/\/promote$/, '');
+
+      const authzResult = await checkAuthz(request, reply, 'write');
+      if (authzResult === false) return;
+
+      const options = getAuthorOptions(request);
+
+      try {
+        const result = await promoteNode(request.configPath, options);
+        return { promoted: true, path: result.path, targetBranch: result.targetBranch };
+      } catch (err) {
+        if (err.code === 'PROMOTION_NOT_CONFIGURED') {
+          return reply.code(400).send({ error: 'Bad Request', message: err.message });
+        }
+        if (err.code === 'NOT_FOUND') {
+          return reply.code(404).send({ error: 'Not Found', message: err.message });
+        }
+        if (err.code === 'TARGET_BRANCH_NOT_FOUND') {
+          return reply.code(502).send({ error: 'Bad Gateway', message: err.message });
+        }
+        throw err;
+      }
+    }
+
+    return mergeHandler(request, reply);
+  });
 
   /**
    * PATCH /config/*
@@ -281,13 +389,34 @@ export default async function configRoutes(fastify) {
       }
     }
 
-    const result = await putNode(destPath, data, getAuthorOptions(request));
-
-    return {
-      path: destPath,
-      data: result,
-      message: 'Configuration replaced successfully',
+    const options = {
+      ...getAuthorOptions(request),
+      expectedRevision: getExpectedRevision(request),
     };
+
+    try {
+      const result = await putNode(destPath, data, options);
+
+      if (result.revision) {
+        reply.header('cqrcfg-revision', result.revision);
+      }
+
+      return {
+        path: destPath,
+        data: result.data,
+        revision: result.revision,
+        message: 'Configuration replaced successfully',
+      };
+    } catch (err) {
+      if (err instanceof ConflictError) {
+        return reply.code(409).send({
+          error: 'Conflict',
+          message: err.message,
+          currentRevision: err.currentRevision,
+        });
+      }
+      throw err;
+    }
   });
 
   /**

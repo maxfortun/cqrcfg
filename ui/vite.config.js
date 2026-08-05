@@ -1,21 +1,45 @@
-import { defineConfig } from 'vite'
+import { defineConfig, loadEnv } from 'vite'
 import react from '@vitejs/plugin-react'
+import { resolve, dirname } from 'path'
+import { fileURLToPath } from 'url'
+
+const __dirname = dirname(fileURLToPath(import.meta.url));
+
+function runtimeConfigPlugin() {
+  let env;
+  return {
+    name: 'runtime-config',
+    configureServer(server) {
+      env = loadEnv('development', resolve(__dirname, '..'), '');
+      server.middlewares.use('/config.js', (req, res) => {
+        res.setHeader('Content-Type', 'application/javascript');
+        res.end(`
+window.__CQRCFG_ENV__ = '${env.UI_ENV || 'dev'}';
+window.__CQRCFG_API_URL__ = '${env.UI_API_URL || '/api'}';
+window.__CQRCFG_ACL_CLAIM__ = '${env.OIDC_ACL_CLAIM || 'cqrcfg_acl'}';
+window.__CQRCFG_ACL_CACHE_TTL__ = ${env.OIDC_ACL_CACHE_TTL || 300};
+window.__CQRCFG_NAME_CLAIM__ = '${env.UI_NAME_CLAIM || 'sub'}';
+window.__CQRCFG_USERNAME_CLAIM__ = '${env.UI_USERNAME_CLAIM || 'sub'}';
+window.__CQRCFG_GIT_BRANCH__ = '${env.GIT_BRANCH || ''}';
+window.__CQRCFG_GIT_PROMOTION_BRANCH__ = '${env.GIT_PROMOTION_BRANCH || ''}';
+window.__CQRCFG_NAV_BG_COLOR__ = '${env.UI_NAV_BG_COLOR || 'seagreen'}';
+window.__CQRCFG_NAV_TEXT_COLOR__ = '${env.UI_NAV_TEXT_COLOR || 'white'}';
+`);
+      });
+    },
+  };
+}
 
 // https://vite.dev/config/
 export default defineConfig({
   base: './',
-  plugins: [react()],
+  plugins: [react(), runtimeConfigPlugin()],
   server: {
     proxy: {
       '/api': {
         target: 'http://127.0.0.1:3000',
         changeOrigin: true,
         rewrite: (path) => path.replace(/^\/api/, ''),
-      },
-      '/ws': {
-        target: 'ws://127.0.0.1:3000',
-        ws: true,
-        rewrite: (path) => path.replace(/^\/ws/, ''),
       },
     },
   },

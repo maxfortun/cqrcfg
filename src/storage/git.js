@@ -3,8 +3,8 @@ import { promisify } from 'util';
 import { mkdir, readFile, writeFile, rm, readdir, stat } from 'fs/promises';
 import { join, dirname } from 'path';
 import { createCipheriv, createDecipheriv, pbkdf2Sync, randomBytes } from 'crypto';
-import { StorageInterface, globToRegex, matchesFilter } from './interface.js';
-import { logger } from '../logger.js';
+import { StorageInterface, ConflictError, globToRegex, matchesFilter } from './interface.js';
+import { logger } from '../logger/index.js';
 
 const execFileAsync = promisify(execFile);
 
@@ -26,7 +26,6 @@ export class GitStorage extends StorageInterface {
     this.encryptionSalt = encryption.salt || '';
     this.encryptionPassword = encryption.password || '';
 
-    // Mutex for git operations
     this.operationQueue = Promise.resolve();
     this.lastPull = 0;
   }
@@ -107,6 +106,17 @@ export class GitStorage extends StorageInterface {
         await stat(join(this.localPath, '.git'));
         logger.debug({ localPath: this.localPath }, 'Git repo exists');
 
+        // Ensure we're on the configured branch
+        const currentBranch = await this._git(['rev-parse', '--abbrev-ref', 'HEAD']);
+        if (currentBranch !== this.branch) {
+          logger.info({ from: currentBranch, to: this.branch }, 'Switching to configured branch');
+          try {
+            await this._git(['checkout', this.branch]);
+          } catch {
+            await this._git(['checkout', '-b', this.branch]);
+          }
+        }
+
         if (this._hasRemote()) {
           // Fetch and reset to remote (branch may not exist yet on empty repos)
           try {
@@ -152,9 +162,9 @@ export class GitStorage extends StorageInterface {
 
       this.lastPull = Date.now();
       if (this._hasRemote()) {
-        logger.info({ remoteUrl: this.remoteUrl }, 'Connected to git storage');
+        logger.info({ remoteUrl: this.remoteUrl, branch: this.branch }, 'Connected to git storage');
       } else {
-        logger.info({ localPath: this.localPath }, 'Connected to local git storage (no remote)');
+        logger.info({ localPath: this.localPath, branch: this.branch }, 'Connected to local git storage (no remote)');
       }
     });
   }
@@ -187,11 +197,30 @@ export class GitStorage extends StorageInterface {
     }
   }
 
-  // Serialize git operations to avoid conflicts
   async _withLock(fn) {
     const ticket = this.operationQueue.then(() => fn()).catch(err => { throw err; });
     this.operationQueue = ticket.catch(() => {});
     return ticket;
+  }
+
+  async sync() {
+    if (!this._hasRemote()) return;
+
+    await this._withLock(async () => {
+      try {
+        await this._git(['fetch', 'origin', this.branch]);
+        await this._git(['rebase', `origin/${this.branch}`]);
+        this.lastPull = Date.now();
+        logger.debug('Git sync: rebased onto remote');
+      } catch (err) {
+        logger.error({ err: err.message }, 'Git sync rebase failed, resetting to remote');
+        try {
+          await this._git(['rebase', '--abort']);
+        } catch { /* no rebase in progress */ }
+        await this._git(['reset', '--hard', `origin/${this.branch}`]);
+        this.lastPull = Date.now();
+      }
+    });
   }
 
   async _pullIfNeeded() {
@@ -257,6 +286,21 @@ export class GitStorage extends StorageInterface {
     const relative = filePath.replace(this.localPath, '').replace(/^\//, '');
     if (!relative.endsWith('.json')) return null;
     return '/' + relative.slice(0, -5);
+  }
+
+  _fileRelativePath(configPath) {
+    const relativePath = configPath.startsWith('/') ? configPath.slice(1) : configPath;
+    return relativePath + '.json';
+  }
+
+  async _getRevision(configPath) {
+    const relFile = this._fileRelativePath(configPath);
+    try {
+      const hash = await this._git(['log', '-1', '--format=%H', '--', relFile]);
+      return hash || null;
+    } catch {
+      return null;
+    }
   }
 
   async _readJsonFile(filePath) {
@@ -344,10 +388,13 @@ export class GitStorage extends StorageInterface {
 
       if (!content) return null;
 
+      const revision = await this._getRevision(path);
+
       return {
         path,
         data: content.data,
         updatedAt: new Date(content.updatedAt),
+        revision,
       };
     });
   }
@@ -365,6 +412,14 @@ export class GitStorage extends StorageInterface {
     return this._withLock(async () => {
       await this._pullIfNeeded();
 
+      // Optimistic locking: check expected revision if provided
+      if (options.expectedRevision) {
+        const currentRevision = await this._getRevision(path);
+        if (currentRevision && currentRevision !== options.expectedRevision) {
+          throw new ConflictError(path, currentRevision);
+        }
+      }
+
       const filePath = this._pathToFile(path);
       await this._writeJsonFile(filePath, {
         data,
@@ -372,6 +427,10 @@ export class GitStorage extends StorageInterface {
       });
 
       await this._commitAndPush(`Update ${path}`, options.author);
+
+      // Return the new revision after commit
+      const newRevision = await this._getRevision(path);
+      return { revision: newRevision };
     });
   }
 
@@ -438,6 +497,65 @@ export class GitStorage extends StorageInterface {
       }
 
       return paths;
+    });
+  }
+
+  async promote(path, targetBranch, options = {}) {
+    return this._withLock(async () => {
+      await this._pullIfNeeded();
+
+      const filePath = this._pathToFile(path);
+      const content = await this._readJsonFile(filePath);
+      if (!content) {
+        const err = new Error(`Configuration not found at path: ${path}`);
+        err.code = 'NOT_FOUND';
+        throw err;
+      }
+
+      const sourceBranch = this.branch;
+
+      try {
+        if (this._hasRemote()) {
+          try {
+            await this._git(['fetch', 'origin', targetBranch]);
+          } catch (err) {
+            if (err.message.includes("couldn't find remote ref")) {
+              const notFound = new Error(`Target branch '${targetBranch}' does not exist on the remote`);
+              notFound.code = 'TARGET_BRANCH_NOT_FOUND';
+              throw notFound;
+            }
+            throw err;
+          }
+        }
+
+        await this._git(['checkout', targetBranch]);
+
+        if (this._hasRemote()) {
+          await this._git(['reset', '--hard', `origin/${targetBranch}`]);
+        }
+
+        await this._writeJsonFile(filePath, {
+          data: content.data,
+          updatedAt: new Date().toISOString(),
+        });
+
+        await this._git(['add', '-A']);
+        try {
+          await this._git(['diff', '--cached', '--quiet']);
+        } catch {
+          await this._git(['commit', '-m', `Promote ${path} from ${sourceBranch}`, '--author', this._resolveAuthor(options.author)]);
+          if (this._hasRemote()) {
+            await this._git(['push', 'origin', targetBranch]);
+          }
+        }
+      } finally {
+        await this._git(['checkout', sourceBranch]);
+        if (this._hasRemote()) {
+          try {
+            await this._git(['reset', '--hard', `origin/${sourceBranch}`]);
+          } catch { /* best effort */ }
+        }
+      }
     });
   }
 }

@@ -28,8 +28,12 @@ window.__CQRCFG_AUTH_HEADER__ = '${process.env.UI_AUTH_HEADER || ''}';
 window.__CQRCFG_AUTH_PATTERN__ = '${process.env.UI_AUTH_PATTERN || ''}';
 window.__CQRCFG_NAME_CLAIM__ = '${process.env.UI_NAME_CLAIM || 'sub'}';
 window.__CQRCFG_USERNAME_CLAIM__ = '${process.env.UI_USERNAME_CLAIM || 'sub'}';
-window.__CQRCFG_ACL_CLAIM__ = '${process.env.UI_ACL_CLAIM || 'cqrcfg_acl'}';
-window.__CQRCFG_ACL_CACHE_TTL__ = ${process.env.UI_ACL_CACHE_TTL || 300};
+window.__CQRCFG_ACL_CLAIM__ = '${process.env.OIDC_ACL_CLAIM || process.env.UI_ACL_CLAIM || 'cqrcfg_acl'}';
+window.__CQRCFG_ACL_CACHE_TTL__ = ${process.env.OIDC_ACL_CACHE_TTL || process.env.UI_ACL_CACHE_TTL || 300};
+window.__CQRCFG_GIT_BRANCH__ = '${process.env.GIT_BRANCH || ''}';
+window.__CQRCFG_GIT_PROMOTION_BRANCH__ = '${process.env.GIT_PROMOTION_BRANCH || ''}';
+window.__CQRCFG_NAV_BG_COLOR__ = '${process.env.UI_NAV_BG_COLOR || 'seagreen'}';
+window.__CQRCFG_NAV_TEXT_COLOR__ = '${process.env.UI_NAV_TEXT_COLOR || 'white'}';
 `;
 
 const fastify = Fastify({
@@ -55,15 +59,6 @@ await fastify.register(fastifyHttpProxy, {
   upstream: API_URL,
   prefix: '/api',
   rewritePrefix: '',
-  websocket: true,
-});
-
-// WebSocket proxy
-await fastify.register(fastifyHttpProxy, {
-  upstream: API_URL,
-  prefix: '/ws',
-  rewritePrefix: '',
-  websocket: true,
 });
 
 // Serve static files
@@ -75,7 +70,7 @@ await fastify.register(fastifyStatic, {
 // SPA fallback - serve index.html for unmatched routes
 fastify.setNotFoundHandler(async (request, reply) => {
   console.log('[cqrcfg-ui] 404 fallback hit for:', request.url);
-  if (request.url.startsWith('/api/') || request.url.startsWith('/ws/')) {
+  if (request.url.startsWith('/api/')) {
     reply.code(404).send({ error: 'Not Found' });
     return;
   }

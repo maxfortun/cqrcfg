@@ -5,6 +5,14 @@ const AUTH_PATTERN = window.__CQRCFG_AUTH_PATTERN__ || '';
 // Check if proxy auth mode is enabled
 export const isProxyAuthMode = !!AUTH_HEADER;
 
+export class ConflictError extends Error {
+  constructor(message, currentRevision) {
+    super(message);
+    this.name = 'ConflictError';
+    this.currentRevision = currentRevision;
+  }
+}
+
 function getAuthHeaders(token) {
   // In proxy auth mode, don't send Authorization header (proxy handles it)
   if (isProxyAuthMode) {
@@ -14,11 +22,18 @@ function getAuthHeaders(token) {
 }
 
 async function handleResponse(response) {
+  if (response.status === 409) {
+    const error = await response.json().catch(() => ({}));
+    throw new ConflictError(
+      error.message || 'Configuration was modified by another user',
+      error.currentRevision
+    );
+  }
   if (!response.ok) {
     const error = await response.json().catch(() => ({ message: response.statusText }));
     throw new Error(error.message || `HTTP ${response.status}`);
   }
-  return response.json();
+  return response;
 }
 
 export const api = {
@@ -28,7 +43,8 @@ export const api = {
       headers: getAuthHeaders(token),
       credentials: isProxyAuthMode ? 'include' : 'same-origin',
     });
-    return handleResponse(response);
+    const res = await handleResponse(response);
+    return res.json();
   },
 
   async searchPaths(pattern, token) {
@@ -38,7 +54,8 @@ export const api = {
       headers: getAuthHeaders(token),
       credentials: isProxyAuthMode ? 'include' : 'same-origin',
     });
-    return handleResponse(response);
+    const res = await handleResponse(response);
+    return res.json();
   },
 
   async getConfig(path, token) {
@@ -47,35 +64,65 @@ export const api = {
       headers: getAuthHeaders(token),
       credentials: isProxyAuthMode ? 'include' : 'same-origin',
     });
-    return handleResponse(response);
+    const res = await handleResponse(response);
+    const data = await res.json();
+    const revision = response.headers.get('cqrcfg-revision') || null;
+    return { data, revision };
   },
 
-  async putConfig(path, data, token) {
-    const url = `${API_BASE}${path}`;
+  async putConfig(path, data, token, revision) {
+    const url = revision ? `${API_BASE}${path}?rev=${encodeURIComponent(revision)}` : `${API_BASE}${path}`;
+    const headers = {
+      ...getAuthHeaders(token),
+      'Content-Type': 'application/json',
+    };
     const response = await fetch(url, {
       method: 'PUT',
-      headers: {
-        ...getAuthHeaders(token),
-        'Content-Type': 'application/json',
-      },
+      headers,
       credentials: isProxyAuthMode ? 'include' : 'same-origin',
       body: JSON.stringify(data),
     });
-    return handleResponse(response);
+    const res = await handleResponse(response);
+    const result = await res.json();
+    return result;
   },
 
-  async patchConfig(path, data, token) {
-    const url = `${API_BASE}${path}`;
+  async patchConfig(path, data, token, revision) {
+    const url = revision ? `${API_BASE}${path}?rev=${encodeURIComponent(revision)}` : `${API_BASE}${path}`;
+    const headers = {
+      ...getAuthHeaders(token),
+      'Content-Type': 'application/json',
+    };
     const response = await fetch(url, {
       method: 'PATCH',
-      headers: {
-        ...getAuthHeaders(token),
-        'Content-Type': 'application/json',
-      },
+      headers,
       credentials: isProxyAuthMode ? 'include' : 'same-origin',
       body: JSON.stringify(data),
     });
-    return handleResponse(response);
+    const res = await handleResponse(response);
+    const result = await res.json();
+    return result;
+  },
+
+  async queryJsonPath(path, jsonPathExpr, token) {
+    const url = `${API_BASE}${path}?jsonPath=${encodeURIComponent(jsonPathExpr)}`;
+    const response = await fetch(url, {
+      headers: getAuthHeaders(token),
+      credentials: isProxyAuthMode ? 'include' : 'same-origin',
+    });
+    const res = await handleResponse(response);
+    return res.json();
+  },
+
+  async queryKeyValueFilter(path, filters, token) {
+    const params = new URLSearchParams(filters);
+    const url = `${API_BASE}${path}?${params.toString()}`;
+    const response = await fetch(url, {
+      headers: getAuthHeaders(token),
+      credentials: isProxyAuthMode ? 'include' : 'same-origin',
+    });
+    const res = await handleResponse(response);
+    return res.json();
   },
 
   async deleteConfig(path, token) {
@@ -85,7 +132,19 @@ export const api = {
       headers: getAuthHeaders(token),
       credentials: isProxyAuthMode ? 'include' : 'same-origin',
     });
-    return handleResponse(response);
+    const res = await handleResponse(response);
+    return res.json();
+  },
+
+  async promoteConfig(path, token) {
+    const url = `${API_BASE}${path}/promote`;
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: getAuthHeaders(token),
+      credentials: isProxyAuthMode ? 'include' : 'same-origin',
+    });
+    const res = await handleResponse(response);
+    return res.json();
   },
 
   // Fetch token from configured header (for proxy auth mode)
@@ -114,4 +173,19 @@ export const api = {
       return null;
     }
   },
+
+  // Fetch authenticated user's claims from the API
+  async fetchWhoami() {
+    try {
+      const response = await fetch(`${API_BASE}/whoami`, {
+        credentials: 'include',
+      });
+      if (!response.ok) return null;
+      const data = await response.json();
+      return data.claims || null;
+    } catch {
+      return null;
+    }
+  },
+
 };

@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
+import { PromoteButton } from './PromoteButton';
 
-export function ConfigEditor({ path, data, onSave, onDelete, onClose, canWrite }) {
+export function ConfigEditor({ path, data, onSave, onForceSave, onDelete, onPromote, onReload, onClose, canWrite, remoteChange }) {
   const [editMode, setEditMode] = useState('form'); // 'form' or 'json'
   const [jsonText, setJsonText] = useState('');
   const [formData, setFormData] = useState({});
@@ -64,6 +65,15 @@ export function ConfigEditor({ path, data, onSave, onDelete, onClose, canWrite }
       return;
     }
     onSave(path, formData);
+    setHasChanges(false);
+  };
+
+  const handleForceSave = () => {
+    if (jsonError) {
+      alert('Please fix JSON errors before saving');
+      return;
+    }
+    onForceSave(path, formData);
     setHasChanges(false);
   };
 
@@ -137,6 +147,16 @@ export function ConfigEditor({ path, data, onSave, onDelete, onClose, canWrite }
         </div>
       </div>
 
+      {remoteChange && remoteChange.conflict && (
+        <div className="remote-change-banner conflict-banner">
+          <span>Save failed: another user modified this configuration.</span>
+          <div className="conflict-actions">
+            <button onClick={onReload}>Reload (discard my changes)</button>
+            <button onClick={handleForceSave} className="btn-force">Force save (overwrite)</button>
+          </div>
+        </div>
+      )}
+
       <div className="editor-tabs">
         <button
           className={editMode === 'form' ? 'active' : ''}
@@ -187,14 +207,17 @@ export function ConfigEditor({ path, data, onSave, onDelete, onClose, canWrite }
       </div>
 
       <div className="editor-footer">
-        <button
-          className="btn-delete"
-          onClick={() => onDelete(path)}
-          disabled={!canWrite}
-          title={canWrite ? 'Delete configuration' : 'No write permission'}
-        >
-          Delete
-        </button>
+        <div className="editor-footer-left">
+          <button
+            className="btn-delete"
+            onClick={() => onDelete(path)}
+            disabled={!canWrite}
+            title={canWrite ? 'Delete configuration' : 'No write permission'}
+          >
+            Delete
+          </button>
+          {canWrite && <PromoteButton path={path} onPromote={onPromote} />}
+        </div>
         <div className="editor-footer-right">
           {hasChanges && canWrite && (
             <button onClick={handleReset}>Reset</button>

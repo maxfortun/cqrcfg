@@ -123,6 +123,15 @@ export function matchesFilter(obj, filters) {
   return true;
 }
 
+export class ConflictError extends Error {
+  constructor(path, currentRevision) {
+    super(`Conflict: path "${path}" has been modified (current revision: ${currentRevision})`);
+    this.name = 'ConflictError';
+    this.path = path;
+    this.currentRevision = currentRevision;
+  }
+}
+
 export class StorageInterface {
   async connect() {
     throw new Error('Not implemented');
@@ -130,6 +139,10 @@ export class StorageInterface {
 
   async close() {
     throw new Error('Not implemented');
+  }
+
+  async sync() {
+    // No-op by default — backends that use local replicas (e.g. git) override this
   }
 
   async getByPrefix(pathPrefix) {
@@ -157,6 +170,10 @@ export class StorageInterface {
   }
 
   async searchPaths(pattern) {
+    throw new Error('Not implemented');
+  }
+
+  async promote(path, targetBranch, options) {
     throw new Error('Not implemented');
   }
 }

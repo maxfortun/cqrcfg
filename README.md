@@ -85,15 +85,11 @@ npm run ui:build
 
 The UI development server will be available at `http://localhost:5173` and requires a valid JWT token with appropriate permissions (`read`, `write`, `list`) to browse and edit configurations.
 
-### Environment Themes
+### Themes
 
-The UI supports runtime theming to visually distinguish between environments (dev, int, prod). Themes are CSS files that override CSS variables. The theme toggle cycles between Light, Dark, and Auto (system preference).
+The UI supports Light, Dark, and Auto (system preference) themes via the theme toggle. Themes are CSS files (`ui/public/themes/light.css`, `dark.css`) that define CSS variables.
 
-**Available themes:**
-- `ui/public/themes/light.css`, `dark.css` - Default (no env)
-- `ui/public/themes/dev-light.css`, `dev-dark.css` - Development (green accent)
-- `ui/public/themes/int-light.css`, `int-dark.css` - Integration (blue accent)
-- `ui/public/themes/prod-light.css`, `prod-dark.css` - Production (red accent)
+To visually distinguish environments, use the `UI_NAV_BG_COLOR` and `UI_NAV_TEXT_COLOR` environment variables to set the navigation bar colors per deployment.
 
 **CSS Variables:**
 ```css
@@ -109,8 +105,6 @@ The UI supports runtime theming to visually distinguish between environments (de
   --warning: #ff9800;
   --error: #f44336;
   --border: #2a2a4a;
-  --env-badge-bg: #e94560;    /* Environment badge background */
-  --env-badge-text: #ffffff;  /* Environment badge text */
 }
 ```
 
@@ -191,6 +185,7 @@ GIT_DATA_PATH=./data/git docker compose -f docker-compose.git.yml up -d
 | `GIT_COMMIT_EMAIL_CLAIM` | (none) | JWT claim path for commit author email (dot notation, e.g. `useremail`) |
 | `GIT_ENCRYPTION_SALT` | (none) | Hex-encoded 8-byte salt for encryption |
 | `GIT_ENCRYPTION_PASSWORD` | (none) | Password for encryption (both required to enable) |
+| `GIT_PROMOTION_BRANCH` | (none) | Target branch for config promotion. When set, enables the "Promote" button in the UI which copies the selected config to this branch. If unset, promotion is disabled and hidden. |
 
 **Commit Author Attribution:** When `GIT_COMMIT_NAME_CLAIM` and `GIT_COMMIT_EMAIL_CLAIM` are set, the git backend extracts the commit author from the authenticated user's JWT claims. This allows individual config changes to be attributed to the user who made them. If the claims are not present in the token, the default `GIT_COMMIT_AUTHOR` is used.
 
@@ -255,8 +250,10 @@ The UI is configured via environment variables that generate a runtime config.js
 | `UI_AUTH_PATTERN` | `''` | Regex pattern to extract token from header (capture group 1 used; default strips `Bearer ` prefix) |
 | `UI_NAME_CLAIM` | `sub` | JWT claim to use for display name |
 | `UI_USERNAME_CLAIM` | `sub` | JWT claim to use for username (shown on hover if different from name) |
-| `UI_ACL_CLAIM` | `cqrcfg_acl` | JWT claim for ACL (array, JSON string, or URL) |
-| `UI_ACL_CACHE_TTL` | `300` | Cache TTL in seconds for ACL fetched from URLs |
+| `OIDC_ACL_CLAIM` | `cqrcfg_acl` | JWT claim for ACL (array, JSON string, or URL) |
+| `OIDC_ACL_CACHE_TTL` | `300` | Cache TTL in seconds for ACL fetched from URLs |
+| `UI_NAV_BG_COLOR` | `seagreen` | Navigation bar background color (any CSS color value) |
+| `UI_NAV_TEXT_COLOR` | `white` | Navigation bar text color (any CSS color value) |
 
 **Examples:**
 
@@ -302,21 +299,11 @@ In proxy auth mode:
    :root {
      --bg-primary: #1a1a2e;
      --accent: #e94560;
-     --env-badge-bg: #e94560;
      /* ... other variables */
    }
    ```
 
-2. Create a config.js file:
-   ```javascript
-   window.__CQRCFG_ENV__ = 'my-env';
-   window.__CQRCFG_API_URL__ = '/api';  // or 'http://api.example.com'
-   ```
-
-3. Start with custom paths:
-   ```bash
-   UI_THEME=./my-theme.css UI_CONFIG=./my-config.js docker compose up -d
-   ```
+2. Place it in `ui/public/themes/` as `light.css` or `dark.css` (or mount it over the existing file in Docker).
 
 ## Configuration
 
@@ -361,6 +348,7 @@ In proxy auth mode:
 | `GIT_COMMIT_EMAIL_CLAIM` | (optional) | JWT claim path for git commit author email (dot notation) |
 | `GIT_ENCRYPTION_SALT` | (optional) | Hex-encoded 8-byte salt for AES-256-CBC encryption |
 | `GIT_ENCRYPTION_PASSWORD` | (optional) | Password for encryption; both salt and password required to enable |
+| `GIT_PROMOTION_BRANCH` | (optional) | Target branch for promotion; enables "Promote" button in UI |
 
 ### Notification Settings
 
@@ -369,6 +357,20 @@ In proxy auth mode:
 | `NOTIFICATIONS_TYPE` | `websocket` | Notification broker: `websocket`, `kafka`, `amqp` |
 | `KAFKA_BROKERS` | `localhost:9092` | Comma-separated Kafka brokers |
 | `KAFKA_TOPIC` | `cqrcfg-changes` | Kafka topic for changes |
+| `KAFKA_CLIENT_ID` | `cqrcfg` | Kafka client identifier |
+| `KAFKA_GROUP_ID_PREFIX` | `cqrcfg` | Kafka consumer group ID prefix |
+| `KAFKA_GROUP_ID_SUFFIX` | (none) | Kafka consumer group ID suffix (appended with `-` separator) |
+| `KAFKA_SSL` | `false` | Enable SSL/TLS for Kafka connections |
+| `KAFKA_SSL_REJECT_UNAUTHORIZED` | `true` | Reject connections with untrusted certificates |
+| `KAFKA_SSL_CA` | (none) | Path to CA certificate file (PEM) |
+| `KAFKA_SSL_KEY` | (none) | Path to client private key file (PEM) |
+| `KAFKA_SSL_CERT` | (none) | Path to client certificate file (PEM) |
+| `KAFKA_SASL_MECHANISM` | (none) | SASL mechanism: `plain`, `scram-sha-256`, `scram-sha-512`, `oauthbearer` |
+| `KAFKA_SASL_USERNAME` | (none) | Username for `plain` / `scram-sha-*` |
+| `KAFKA_SASL_PASSWORD` | (none) | Password for `plain` / `scram-sha-*` |
+| `KAFKA_SASL_CLIENT_ID` | (none) | OAuth client ID for `oauthbearer` |
+| `KAFKA_SASL_CLIENT_SECRET` | (none) | OAuth client secret for `oauthbearer` |
+| `KAFKA_SASL_TOKEN_URI` | (none) | OAuth token endpoint URL for `oauthbearer` |
 | `AMQP_URL` | `amqp://localhost` | AMQP connection URL |
 | `AMQP_EXCHANGE` | `cqrcfg` | AMQP exchange name |
 
@@ -507,6 +509,49 @@ GET /health
 ```
 
 Returns service status (no authentication required).
+
+### Concurrency Control
+
+When using the **git storage backend**, the API supports optimistic locking to prevent lost updates when multiple users or instances modify the same configuration.
+
+**On GET responses**, the server returns a `cqrcfg-revision` header containing the revision hash:
+```
+cqrcfg-revision: a1b2c3d4e5f6...
+```
+
+**On PUT/PATCH/POST requests**, include the `rev` query parameter with the value received from your last read:
+```
+PUT /config/app1/db?rev=a1b2c3d4e5f6...
+```
+
+If the configuration has been modified since you last read it, the server rejects the write with a `409 Conflict`:
+```json
+{
+  "error": "Conflict",
+  "message": "Conflict: path \"/config/app1/db\" has been modified (current revision: f7e9f09...)",
+  "currentRevision": "f7e9f09..."
+}
+```
+
+**Behaviour:**
+- The `rev` query parameter is optional — omitting it gives last-write-wins behaviour (no conflict check)
+- Write responses include a `revision` field in the JSON body with the new revision after the write succeeds
+- The `cqrcfg-revision` header is only returned when using the git backend; other backends return responses without it
+- The UI automatically tracks revisions and sends the `rev` query parameter on save
+
+**Example:**
+```bash
+# Read config and capture the revision
+REV=$(curl -s -D - -H "Authorization: Bearer $TOKEN" \
+  http://localhost:3000/config/app1/db | grep -i cqrcfg-revision | tr -d '\r' | awk '{print $2}')
+
+# Update with concurrency check
+curl -X PUT \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"host": "new-host", "port": 5432}' \
+  "http://localhost:3000/config/app1/db?rev=$REV"
+```
 
 ### Get Config Subtree
 
@@ -721,8 +766,11 @@ ws.onmessage = (event) => {
 **Events:**
 ```json
 {"type": "connected", "path": "/config/app1", "user": "user123"}
-{"type": "change", "operation": "update", "path": "/config/app1/db", "data": {...}}
+{"type": "change", "operation": "update", "path": "/config/app1/db", "data": {...}, "revision": "a1b2c3d...", "timestamp": "2025-06-05T12:00:00.000Z"}
+{"type": "change", "operation": "delete", "path": "/config/app1/db", "revision": null, "timestamp": "2025-06-05T12:01:00.000Z"}
 ```
+
+The `revision` field contains the new git commit hash after the change (git backend only; `null` for other backends or deletes). Clients can use this to update their local revision without refetching.
 
 ## JWT Token Format
 
@@ -765,11 +813,12 @@ Claims can also be provided via HTTP headers (configured via `OIDC_CLAIMS_HEADER
 src/
 ├── index.js              # Server entry point
 ├── config.js             # Environment configuration
-├── logger.js             # Pino logger with pluggable transport support
-├── transports/
-│   ├── log4js.js         # Pino → log4js bridge transport
-│   ├── winston.js        # Pino → winston bridge transport
-│   └── generic.js        # Pino → any compatible logger bridge
+├── logger/
+│   ├── index.js          # Pino logger with pluggable transport support
+│   └── transports/
+│       ├── log4js.js     # Pino → log4js bridge transport
+│       ├── winston.js    # Pino → winston bridge transport
+│       └── generic.js    # Pino → any compatible logger bridge
 ├── middleware/
 │   ├── auth.js           # JWT authentication (JWKS, claims headers, fallback)
 │   ├── authz.js          # Authorization (permissions)
@@ -779,13 +828,14 @@ src/
 │   └── stream.js         # WebSocket subscriptions
 ├── services/
 │   ├── configService.js  # Config operations (LRU cache, notifications)
-│   └── notificationService.js  # Pub/sub notifications
+│   ├── notificationService.js  # Pub/sub notifications
+│   └── cacheSync.js      # Cross-instance cache invalidation and storage sync via broker
 ├── storage/
 │   ├── interface.js      # Storage interface + glob/filter utilities
 │   ├── mongodb.js        # MongoDB implementation
 │   ├── dynamodb.js       # DynamoDB implementation
 │   ├── etcd.js           # etcd implementation
-│   └── git.js            # Git implementation (encryption, author claims)
+│   └── git.js            # Git implementation (encryption, author claims, optimistic locking)
 ├── notifications/
 │   ├── interface.js      # Notifications interface
 │   ├── websocket.js      # In-process pub/sub
@@ -824,6 +874,7 @@ All errors return JSON:
 | 401 | Unauthorized | Missing or invalid JWT |
 | 403 | Forbidden | Insufficient permissions |
 | 404 | Not Found | Config path doesn't exist |
+| 409 | Conflict | Config was modified since last read (stale `rev` query parameter) |
 | 500 | Internal Server Error | Unexpected error |
 
 ## License

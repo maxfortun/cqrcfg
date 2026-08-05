@@ -4,7 +4,7 @@ import { ConfigBrowser } from './components/ConfigBrowser';
 import { ConfigEditor } from './components/ConfigEditor';
 import { TokenInput } from './components/TokenInput';
 import { ThemeToggle } from './components/ThemeToggle';
-import { api, isProxyAuthMode } from './api';
+import { api, isProxyAuthMode, ConflictError } from './api';
 
 // Runtime config
 const envName = window.__CQRCFG_ENV__ || '';
@@ -12,6 +12,8 @@ const nameClaim = window.__CQRCFG_NAME_CLAIM__ || 'sub';
 const usernameClaim = window.__CQRCFG_USERNAME_CLAIM__ || 'sub';
 const aclClaim = window.__CQRCFG_ACL_CLAIM__ || 'cqrcfg_acl';
 const aclCacheTtl = (window.__CQRCFG_ACL_CACHE_TTL__ || 300) * 1000;
+const navBgColor = window.__CQRCFG_NAV_BG_COLOR__ || 'seagreen';
+const navTextColor = window.__CQRCFG_NAV_TEXT_COLOR__ || 'white';
 
 // Cache for permissions fetched from URLs
 const aclUrlCache = new Map();
@@ -54,14 +56,24 @@ function App() {
   const [paths, setPaths] = useState([]);
   const [selectedPath, setSelectedPath] = useState(null);
   const [configData, setConfigData] = useState(null);
+  const [revision, setRevision] = useState(null);
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [remoteChange, setRemoteChange] = useState(null);
+
+  // Proxy auth claims (fetched from /whoami endpoint)
+  const [proxyClaims, setProxyClaims] = useState(null);
+
+  useEffect(() => {
+    if (!isProxyAuthMode) return;
+    api.fetchWhoami().then(claims => { if (claims) setProxyClaims(claims); });
+  }, []);
 
   // Parse JWT payload
   const jwtPayload = useMemo(() => {
-    if (isProxyAuthMode) return null;
+    if (isProxyAuthMode) return proxyClaims;
     return parseJwtPayload(token);
-  }, [token]);
+  }, [token, proxyClaims]);
 
   // State for async-fetched permissions
   const [fetchedAcl, setFetchedPermissions] = useState(null);
@@ -164,14 +176,17 @@ function App() {
 
     setLoading(true);
     setError(null);
+    setRemoteChange(null);
 
     try {
       const result = await api.getConfig(path, token);
-      setConfigData(result);
+      setConfigData(result.data);
+      setRevision(result.revision);
       setSelectedPath(path);
     } catch (err) {
       setError(err.message);
       setConfigData(null);
+      setRevision(null);
     } finally {
       setLoading(false);
     }
@@ -184,13 +199,51 @@ function App() {
     setError(null);
 
     try {
-      await api.putConfig(path, data, token);
+      const result = await api.putConfig(path, data, token, revision);
+      setRevision(result.revision || null);
+      setRemoteChange(null);
+      await loadConfig(path);
+      await loadPaths(currentPath);
+    } catch (err) {
+      if (err instanceof ConflictError) {
+        setError('Save failed: this configuration was modified by another user. Reload to see the latest version, or force save to overwrite.');
+        setRemoteChange({
+          path,
+          revision: err.currentRevision,
+          conflict: true,
+        });
+      } else {
+        setError(err.message);
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const forceSaveConfig = async (path, data) => {
+    if (!token) return;
+
+    setLoading(true);
+    setError(null);
+
+    try {
+      // Save without revision check (no rev query parameter)
+      const result = await api.putConfig(path, data, token, null);
+      setRevision(result.revision || null);
+      setRemoteChange(null);
       await loadConfig(path);
       await loadPaths(currentPath);
     } catch (err) {
       setError(err.message);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const reloadConfig = async () => {
+    if (selectedPath) {
+      setRemoteChange(null);
+      await loadConfig(selectedPath);
     }
   };
 
@@ -205,11 +258,28 @@ function App() {
       await api.deleteConfig(path, token);
       setSelectedPath(null);
       setConfigData(null);
+      setRevision(null);
+      setRemoteChange(null);
       await loadPaths(currentPath);
     } catch (err) {
       setError(err.message);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const promoteConfig = async (path) => {
+    if (!token) return;
+
+    setError(null);
+
+    try {
+      const result = await api.promoteConfig(path, token);
+      setError(null);
+      alert(`Successfully promoted ${path} to branch "${result.targetBranch}"`);
+    } catch (err) {
+      setError(err.message);
+      throw err;
     }
   };
 
@@ -220,7 +290,7 @@ function App() {
     setError(null);
 
     try {
-      await api.putConfig(path, data, token);
+      await api.putConfig(path, data, token, null);
       await loadPaths(currentPath);
       await loadConfig(path);
     } catch (err) {
@@ -252,7 +322,7 @@ function App() {
 
   return (
     <div className="app">
-      <header className="app-header">
+      <header className="app-header" style={{ background: navBgColor, color: navTextColor }}>
         <h1>Config Manager</h1>
         {envName && <span className="env-badge">{envName}</span>}
         <div className="header-controls">
@@ -265,7 +335,7 @@ function App() {
           {!isProxyAuthMode && (
             <TokenInput token={token} onTokenChange={handleTokenChange} />
           )}
-          {isProxyAuthMode && (
+          {isProxyAuthMode && !userInfo && (
             <span className="proxy-auth-badge">Proxy Auth</span>
           )}
         </div>
@@ -301,12 +371,18 @@ function App() {
               path={selectedPath}
               data={configData}
               onSave={saveConfig}
+              onForceSave={forceSaveConfig}
               onDelete={deleteConfig}
+              onPromote={promoteConfig}
+              onReload={reloadConfig}
               onClose={() => {
                 setSelectedPath(null);
                 setConfigData(null);
+                setRevision(null);
+                setRemoteChange(null);
               }}
               canWrite={canWriteSelectedPath}
+              remoteChange={remoteChange}
             />
           ) : (
             <div className="placeholder">
