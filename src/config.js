@@ -105,6 +105,10 @@ export const config = {
     // TTL in seconds (default 120 = 2 minutes)
     ttl: parseInt(process.env.CACHE_TTL, 10) || 120,
   },
+  imports: {
+    // Maximum nesting depth when resolving ___import tags
+    maxDepth: parseInt(process.env.IMPORT_MAX_DEPTH, 10) || 10,
+  },
   logLevel: process.env.LOG_LEVEL || 'info',
   healthLogLevel: process.env.HEALTH_LOG_LEVEL || 'warn',
   shutdownDelay: parseInt(process.env.SHUTDOWN_DELAY, 10) || 0,

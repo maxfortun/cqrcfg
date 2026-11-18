@@ -40,6 +40,22 @@ export function authzHook(requiredAction) {
 }
 
 /**
+ * Check whether a user holds a permission for an action on a path.
+ *
+ * @param {object} user - Authenticated user (with a permissions array)
+ * @param {string} path - Normalised config path (e.g. /config/app1/db)
+ * @param {string} action - 'read', 'write' or 'list'
+ * @returns {boolean}
+ */
+export function hasPermission(user, path, action) {
+  if (!user || !path) return false;
+
+  return (user.permissions || []).some(
+    (perm) => isValidPrefix(perm.path, path) && (perm.allow || []).includes(action),
+  );
+}
+
+/**
  * Check if permissionPath is a valid prefix of requestedPath.
  * Ensures proper boundary checking to prevent /app1 matching /app10.
  *

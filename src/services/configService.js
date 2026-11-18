@@ -4,6 +4,8 @@ import { getStorage } from '../storage/index.js';
 import { matchesFilter } from '../storage/interface.js';
 import { buildTree, deepMerge } from '../utils/tree.js';
 import { notifyChange } from './notificationService.js';
+import { findDependents } from './importDependents.js';
+import { logger } from '../logger/index.js';
 import { config } from '../config.js';
 
 // LRU cache for config values
@@ -61,6 +63,22 @@ export function invalidateCacheForPath(path) {
 
   // Note: We don't invalidate child paths because subtree queries
   // are prefix-based and a change to /a/b shouldn't affect cached /a/b/c
+}
+
+// Invalidate caches and notify for configs that import any of the changed paths
+async function notifyDependents(changedPaths) {
+  let dependents;
+  try {
+    dependents = await findDependents(changedPaths);
+  } catch (err) {
+    logger.warn({ err: err.message }, 'Failed to look up configs importing changed paths');
+    return;
+  }
+
+  for (const dependentPath of dependents) {
+    invalidateCacheForPath(dependentPath);
+    await notifyChange('update', dependentPath);
+  }
 }
 
 export async function getSubtree(basePath) {
@@ -199,6 +217,7 @@ export async function patchNode(path, data, options = {}) {
 
   // Publish notification
   await notifyChange(operation, path, result, revision);
+  await notifyDependents([path]);
 
   return { data: result, revision };
 }
@@ -216,6 +235,7 @@ export async function putNode(path, data, options = {}) {
   // Publish notification
   const operation = existing ? 'update' : 'insert';
   await notifyChange(operation, path, data, revision);
+  await notifyDependents([path]);
 
   return { data, revision };
 }
@@ -235,6 +255,10 @@ export async function deleteSubtree(basePath, options = {}) {
   // Publish notifications for each deleted path
   for (const doc of docs) {
     await notifyChange('delete', doc.path);
+  }
+
+  if (docs.length > 0) {
+    await notifyDependents(docs.map((doc) => doc.path));
   }
 
   return count;

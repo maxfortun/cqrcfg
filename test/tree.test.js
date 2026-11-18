@@ -1,6 +1,6 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert';
-import { buildTree, deepMerge } from '../src/utils/tree.js';
+import { buildTree, deepMerge, mergeImport } from '../src/utils/tree.js';
 
 describe('buildTree', () => {
   it('should build tree from flat documents', () => {
@@ -164,5 +164,37 @@ describe('deepMerge', () => {
         },
       },
     });
+  });
+});
+
+describe('mergeImport', () => {
+  it('keeps target values on conflict with keep priority', () => {
+    assert.deepStrictEqual(mergeImport({ a: 1 }, { a: 2, b: 3 }, 'keep'), { a: 1, b: 3 });
+  });
+
+  it('takes imported values on conflict with overwrite priority', () => {
+    assert.deepStrictEqual(mergeImport({ a: 1 }, { a: 2, b: 3 }, 'overwrite'), { a: 2, b: 3 });
+  });
+
+  it('merges nested objects recursively', () => {
+    const target = { o: { x: 1, y: 2 } };
+    const imported = { o: { y: 9, z: 3 } };
+    assert.deepStrictEqual(mergeImport(target, imported, 'keep'), { o: { x: 1, y: 2, z: 3 } });
+    assert.deepStrictEqual(mergeImport(target, imported, 'overwrite'), { o: { x: 1, y: 9, z: 3 } });
+  });
+
+  it('replaces arrays and mismatched types instead of merging them', () => {
+    assert.deepStrictEqual(mergeImport({ l: [1] }, { l: [2] }, 'overwrite'), { l: [2] });
+    assert.deepStrictEqual(mergeImport({ l: [1] }, { l: [2] }, 'keep'), { l: [1] });
+    assert.deepStrictEqual(mergeImport({ o: 1 }, { o: { a: 1 } }, 'overwrite'), { o: { a: 1 } });
+  });
+
+  it('does not mutate inputs or share references with the imported data', () => {
+    const target = { a: { x: 1 } };
+    const imported = { b: { y: 2 } };
+    const result = mergeImport(target, imported, 'keep');
+    result.b.y = 99;
+    assert.deepStrictEqual(imported, { b: { y: 2 } });
+    assert.deepStrictEqual(target, { a: { x: 1 } });
   });
 });

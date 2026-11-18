@@ -59,7 +59,9 @@ export const api = {
   },
 
   async getConfig(path, token) {
-    const url = `${API_BASE}${path}`;
+    // raw=true: load the stored config with ___import tags unresolved, so the
+    // editor shows (and saves) exactly what is stored
+    const url = `${API_BASE}${path}?raw=true`;
     const response = await fetch(url, {
       headers: getAuthHeaders(token),
       credentials: isProxyAuthMode ? 'include' : 'same-origin',
@@ -105,7 +107,7 @@ export const api = {
   },
 
   async queryJsonPath(path, jsonPathExpr, token) {
-    const url = `${API_BASE}${path}?jsonPath=${encodeURIComponent(jsonPathExpr)}`;
+    const url = `${API_BASE}${path}?jsonPath=${encodeURIComponent(jsonPathExpr)}&raw=true`;
     const response = await fetch(url, {
       headers: getAuthHeaders(token),
       credentials: isProxyAuthMode ? 'include' : 'same-origin',
@@ -116,6 +118,7 @@ export const api = {
 
   async queryKeyValueFilter(path, filters, token) {
     const params = new URLSearchParams(filters);
+    params.set('raw', 'true');
     const url = `${API_BASE}${path}?${params.toString()}`;
     const response = await fetch(url, {
       headers: getAuthHeaders(token),

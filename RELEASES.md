@@ -1,5 +1,12 @@
 # Releases
 
+## Unreleased
+
+- Add config imports: `___import` tags (`source`, `priority`, `filter`) are resolved when a config is read via the API, with nested imports, circular import detection, per-source permission checks and importer change notifications
+- Add `?raw=true` read option to return the stored config with `___import` tags unresolved
+- Add `IMPORT_MAX_DEPTH` setting
+- UI now loads configs with `?raw=true` (editor, JSONPath and key/value filters) so `___import` tags are shown and saved as stored rather than as resolved content
+
 ## v1.0.0-build.41 — 2026-08-05
 
 - Add configurable nav bar colors via `UI_NAV_BG_COLOR` and `UI_NAV_TEXT_COLOR` environment variables (defaults: seagreen/white)
