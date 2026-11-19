@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { PromoteButton } from './PromoteButton';
 
-export function ConfigEditor({ path, data, onSave, onForceSave, onDelete, onPromote, onReload, onClose, canWrite, remoteChange }) {
+export function ConfigEditor({ path, data, onSave, onForceSave, onDelete, onPromote, onReload, onClose, canWrite, remoteChange, newConfig }) {
   const [editMode, setEditMode] = useState('form'); // 'form' or 'json'
   const [jsonText, setJsonText] = useState('');
   const [formData, setFormData] = useState({});
@@ -12,10 +12,11 @@ export function ConfigEditor({ path, data, onSave, onForceSave, onDelete, onProm
     if (data) {
       setJsonText(JSON.stringify(data, null, 2));
       setFormData(data);
-      setHasChanges(false);
+      // A template-filled new config is unsaved, so Save must be enabled
+      setHasChanges(!!newConfig);
       setJsonError(null);
     }
-  }, [data]);
+  }, [data]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleJsonChange = (value) => {
     setJsonText(value);
@@ -80,7 +81,7 @@ export function ConfigEditor({ path, data, onSave, onForceSave, onDelete, onProm
   const handleReset = () => {
     setJsonText(JSON.stringify(data, null, 2));
     setFormData(data);
-    setHasChanges(false);
+    setHasChanges(!!newConfig);
     setJsonError(null);
   };
 
@@ -147,6 +148,12 @@ export function ConfigEditor({ path, data, onSave, onForceSave, onDelete, onProm
         </div>
       </div>
 
+      {newConfig && (
+        <div className="remote-change-banner">
+          <span>New configuration, not saved yet. Pre-filled from {newConfig.templatePath}.</span>
+        </div>
+      )}
+
       {remoteChange && remoteChange.conflict && (
         <div className="remote-change-banner conflict-banner">
           <span>Save failed: another user modified this configuration.</span>
@@ -211,12 +218,12 @@ export function ConfigEditor({ path, data, onSave, onForceSave, onDelete, onProm
           <button
             className="btn-delete"
             onClick={() => onDelete(path)}
-            disabled={!canWrite}
+            disabled={!canWrite || !!newConfig}
             title={canWrite ? 'Delete configuration' : 'No write permission'}
           >
             Delete
           </button>
-          {canWrite && <PromoteButton path={path} onPromote={onPromote} />}
+          {canWrite && !newConfig && <PromoteButton path={path} onPromote={onPromote} />}
         </div>
         <div className="editor-footer-right">
           {hasChanges && canWrite && (

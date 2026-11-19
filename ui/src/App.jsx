@@ -56,6 +56,7 @@ function App() {
   const [paths, setPaths] = useState([]);
   const [selectedPath, setSelectedPath] = useState(null);
   const [configData, setConfigData] = useState(null);
+  const [newConfig, setNewConfig] = useState(null); // { templatePath } while an unsaved, template-filled config is open
   const [revision, setRevision] = useState(null);
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -177,6 +178,7 @@ function App() {
     setLoading(true);
     setError(null);
     setRemoteChange(null);
+    setNewConfig(null);
 
     try {
       const result = await api.getConfig(path, token);
@@ -258,6 +260,7 @@ function App() {
       await api.deleteConfig(path, token);
       setSelectedPath(null);
       setConfigData(null);
+      setNewConfig(null);
       setRevision(null);
       setRemoteChange(null);
       await loadPaths(currentPath);
@@ -290,6 +293,16 @@ function App() {
     setError(null);
 
     try {
+      const template = await api.findTemplate(path, token);
+      if (template) {
+        // Open as an unsaved draft; nothing is stored until the user saves
+        setConfigData(template.data);
+        setRevision(null);
+        setRemoteChange(null);
+        setSelectedPath(path);
+        setNewConfig({ templatePath: template.path });
+        return;
+      }
       await api.putConfig(path, data, token, null);
       await loadPaths(currentPath);
       await loadConfig(path);
@@ -378,11 +391,13 @@ function App() {
               onClose={() => {
                 setSelectedPath(null);
                 setConfigData(null);
+                setNewConfig(null);
                 setRevision(null);
                 setRemoteChange(null);
               }}
               canWrite={canWriteSelectedPath}
               remoteChange={remoteChange}
+              newConfig={newConfig}
             />
           ) : (
             <div className="placeholder">

@@ -657,6 +657,12 @@ Imported keys are inserted at the level where the tag appears and the tag is rem
 
 The response also includes `source` and `importedFrom`. When a config changes, change notifications are also sent for every config that (transitively) imports it. `jsonPath` and key/value filter queries match against the stored documents, so they cannot match keys that only exist through imports.
 
+### Config Templates (`___template`, Web UI)
+
+When you create a new config in the Web UI, it is pre-filled from the nearest config named `___template`. The UI looks at `<new path>/___template` first, then at each parent path up to the root (`/config/___template`), and uses the first one it finds. The pre-filled content is a draft: edit it and click Save, and nothing is stored until you do. If no template exists, creation behaves as before (an empty config is created).
+
+Templates are ordinary configs, copied as stored (any `___import` tags are kept, not resolved). The API does not apply templates itself, and there is no placeholder substitution.
+
 ### List Config Paths
 
 ```

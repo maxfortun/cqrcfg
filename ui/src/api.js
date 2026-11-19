@@ -1,3 +1,5 @@
+import { templateCandidates } from './templatePaths.js';
+
 const API_BASE = window.__CQRCFG_API_URL__ || './api';
 const AUTH_HEADER = window.__CQRCFG_AUTH_HEADER__ || '';
 const AUTH_PATTERN = window.__CQRCFG_AUTH_PATTERN__ || '';
@@ -31,7 +33,9 @@ async function handleResponse(response) {
   }
   if (!response.ok) {
     const error = await response.json().catch(() => ({ message: response.statusText }));
-    throw new Error(error.message || `HTTP ${response.status}`);
+    const err = new Error(error.message || `HTTP ${response.status}`);
+    err.status = response.status;
+    throw err;
   }
   return response;
 }
@@ -70,6 +74,22 @@ export const api = {
     const data = await res.json();
     const revision = response.headers.get('cqrcfg-revision') || null;
     return { data, revision };
+  },
+
+  // Find the nearest ___template for a new config (own path first, then each
+  // ancestor). Read raw so ___import tags in the template are kept as-is.
+  // 404 = not here, 403 = no access at this level (skip); other errors propagate.
+  async findTemplate(newPath, token) {
+    for (const candidate of templateCandidates(newPath)) {
+      try {
+        const { data } = await api.getConfig(candidate, token);
+        return { data, path: candidate };
+      } catch (err) {
+        if (err.status === 404 || err.status === 403) continue;
+        throw err;
+      }
+    }
+    return null;
   },
 
   async putConfig(path, data, token, revision) {
