@@ -35,6 +35,10 @@ async function handleResponse(response) {
     const error = await response.json().catch(() => ({ message: response.statusText }));
     const err = new Error(error.message || `HTTP ${response.status}`);
     err.status = response.status;
+    // Import resolution errors carry extra detail (code, source, importedFrom)
+    err.code = error.code;
+    err.source = error.source;
+    err.importedFrom = error.importedFrom;
     throw err;
   }
   return response;
@@ -74,6 +78,18 @@ export const api = {
     const data = await res.json();
     const revision = response.headers.get('cqrcfg-revision') || null;
     return { data, revision };
+  },
+
+  // Read the saved config with all ___import tags resolved (same as a normal
+  // API read). Used by the editor's read-only Preview.
+  async getResolvedConfig(path, token) {
+    const url = `${API_BASE}${path}`;
+    const response = await fetch(url, {
+      headers: getAuthHeaders(token),
+      credentials: isProxyAuthMode ? 'include' : 'same-origin',
+    });
+    const res = await handleResponse(response);
+    return res.json();
   },
 
   // Find the nearest ___template for a new config (own path first, then each

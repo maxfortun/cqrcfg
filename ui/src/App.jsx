@@ -286,6 +286,8 @@ function App() {
     }
   };
 
+  const previewConfig = (path) => api.getResolvedConfig(path, token);
+
   const createConfig = async (path, data) => {
     if (!token) return;
 
@@ -388,6 +390,7 @@ function App() {
               onDelete={deleteConfig}
               onPromote={promoteConfig}
               onReload={reloadConfig}
+              onPreview={previewConfig}
               onClose={() => {
                 setSelectedPath(null);
                 setConfigData(null);
