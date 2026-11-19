@@ -1,11 +1,14 @@
 # Releases
 
-## Unreleased
+## v1.0.0-build.42 — 2026-11-19
 
 - Add config imports: `___import` tags (`source`, `priority`, `filter`) are resolved when a config is read via the API, with nested imports, circular import detection, per-source permission checks and importer change notifications
 - Add `?raw=true` read option to return the stored config with `___import` tags unresolved
 - Add `IMPORT_MAX_DEPTH` setting
 - UI now loads configs with `?raw=true` (editor, JSONPath and key/value filters) so `___import` tags are shown and saved as stored rather than as resolved content
+- Add config templates (Web UI): a new config is pre-filled from the nearest `___template` at its path or any ancestor, editable before saving
+- Add a Preview button to the config editor showing the saved config with all imports resolved (read-only), with clear messages for circular import, missing source and no-access errors
+- Add `IMPORT_EXAMPLES.md` with import usage examples
 
 ## v1.0.0-build.41 — 2026-08-05
 
