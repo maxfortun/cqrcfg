@@ -822,3 +822,49 @@ button.btn-promote-confirm {
   color: white;
   font-size: 0.8rem;
 }
+
+/* Import preview (read-only, resolved) */
+.import-preview {
+  border: 1px solid var(--border, #ccc);
+  border-radius: 4px;
+  padding: 0.75rem;
+  margin-bottom: 0.75rem;
+}
+
+.import-preview-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 0.5rem;
+}
+
+.import-preview-hint {
+  margin: 0 0 0.5rem;
+  font-size: 0.8rem;
+  opacity: 0.8;
+}
+
+.import-preview-content {
+  margin: 0;
+  max-height: 24rem;
+  overflow: auto;
+  font-family: monospace;
+  font-size: 0.85rem;
+  white-space: pre-wrap;
+}
+
+.import-preview-error {
+  padding: 0.625rem 1rem;
+  border-radius: 4px;
+  background: #f8d7da;
+  border: 1px solid #f5c6cb;
+  color: #721c24;
+  font-size: 0.875rem;
+}
+
+[data-theme="dark"] .import-preview-error {
+  background: #2c0b0e;
+  border-color: #5c1a1f;
+  color: #f5c2c7;
+}

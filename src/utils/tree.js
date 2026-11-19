@@ -84,6 +84,39 @@ export function deepMerge(target, source) {
   return result;
 }
 
+/**
+ * Deep merge imported data into a target object (used when resolving ___import).
+ * Neither input is mutated and values taken from `imported` are deep-cloned,
+ * so cached trees are never shared with, or modified through, the result.
+ *
+ * - Key on one side only: kept.
+ * - Both sides plain objects: merged recursively with the same priority.
+ * - Otherwise (scalars, arrays, type mismatch): 'keep' retains the target
+ *   value, 'overwrite' takes the imported value. Arrays are never concatenated.
+ *
+ * @param {object} target - The importing object
+ * @param {object} imported - Data being imported
+ * @param {'keep'|'overwrite'} priority
+ * @returns {object}
+ */
+export function mergeImport(target, imported, priority = 'keep') {
+  const result = { ...target };
+
+  for (const key of Object.keys(imported)) {
+    const importedValue = imported[key];
+
+    if (!(key in result)) {
+      result[key] = structuredClone(importedValue);
+    } else if (isPlainObject(result[key]) && isPlainObject(importedValue)) {
+      result[key] = mergeImport(result[key], importedValue, priority);
+    } else if (priority === 'overwrite') {
+      result[key] = structuredClone(importedValue);
+    }
+  }
+
+  return result;
+}
+
 function isPlainObject(value) {
   return (
     value !== null &&

@@ -1,21 +1,48 @@
 import { useState, useEffect } from 'react';
 import { PromoteButton } from './PromoteButton';
 
-export function ConfigEditor({ path, data, onSave, onForceSave, onDelete, onPromote, onReload, onClose, canWrite, remoteChange }) {
+export function ConfigEditor({ path, data, onSave, onForceSave, onDelete, onPromote, onReload, onPreview, onClose, canWrite, remoteChange, newConfig }) {
   const [editMode, setEditMode] = useState('form'); // 'form' or 'json'
   const [jsonText, setJsonText] = useState('');
   const [formData, setFormData] = useState({});
   const [jsonError, setJsonError] = useState(null);
   const [hasChanges, setHasChanges] = useState(false);
+  // Read-only preview of the saved config with ___import tags resolved
+  const [previewState, setPreview] = useState(null); // { path, loading, data, error }
+  // Ignore a preview that belongs to a different config than the one shown
+  const preview = previewState && previewState.path === path ? previewState : null;
+
+  const handlePreview = async () => {
+    setPreview({ path, loading: true, data: null, error: null });
+    try {
+      const resolved = await onPreview(path);
+      setPreview({ path, loading: false, data: resolved, error: null });
+    } catch (err) {
+      setPreview({ path, loading: false, data: null, error: err });
+    }
+  };
+
+  const previewErrorTitle = (err) => {
+    switch (err.code) {
+      case 'CIRCULAR_IMPORT': return 'Circular import';
+      case 'FORBIDDEN_SOURCE': return 'No access to imported config';
+      case 'SOURCE_NOT_FOUND': return 'Imported config not found';
+      case 'INVALID_FILTER': return 'Invalid import filter';
+      case 'INVALID_IMPORT_TAG': return 'Invalid import tag';
+      case 'IMPORT_DEPTH_EXCEEDED': return 'Imports nested too deeply';
+      default: return err.status === 403 ? 'No access' : 'Import could not be resolved';
+    }
+  };
 
   useEffect(() => {
     if (data) {
       setJsonText(JSON.stringify(data, null, 2));
       setFormData(data);
-      setHasChanges(false);
+      // A template-filled new config is unsaved, so Save must be enabled
+      setHasChanges(!!newConfig);
       setJsonError(null);
     }
-  }, [data]);
+  }, [data]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleJsonChange = (value) => {
     setJsonText(value);
@@ -80,7 +107,7 @@ export function ConfigEditor({ path, data, onSave, onForceSave, onDelete, onProm
   const handleReset = () => {
     setJsonText(JSON.stringify(data, null, 2));
     setFormData(data);
-    setHasChanges(false);
+    setHasChanges(!!newConfig);
     setJsonError(null);
   };
 
@@ -143,9 +170,22 @@ export function ConfigEditor({ path, data, onSave, onForceSave, onDelete, onProm
         <h2>{path}</h2>
         {!canWrite && <span className="readonly-badge">Read Only</span>}
         <div className="editor-actions">
+          <button
+            onClick={handlePreview}
+            disabled={!!newConfig || (preview && preview.loading)}
+            title={newConfig ? 'Save the config first to preview it' : 'Show the saved config with imports resolved'}
+          >
+            Preview
+          </button>
           <button onClick={onClose}>Close</button>
         </div>
       </div>
+
+      {newConfig && (
+        <div className="remote-change-banner">
+          <span>New configuration, not saved yet. Pre-filled from {newConfig.templatePath}.</span>
+        </div>
+      )}
 
       {remoteChange && remoteChange.conflict && (
         <div className="remote-change-banner conflict-banner">
@@ -156,6 +196,31 @@ export function ConfigEditor({ path, data, onSave, onForceSave, onDelete, onProm
           </div>
         </div>
       )}
+
+      {preview && !preview.loading && (
+        <div className="import-preview">
+          <div className="import-preview-header">
+            <strong>Preview (imports resolved, read-only)</strong>
+            <button onClick={() => setPreview(null)}>Close preview</button>
+          </div>
+          {hasChanges && (
+            <p className="import-preview-hint">
+              Shows the saved config only. Unsaved edits are not included.
+            </p>
+          )}
+          {preview.error ? (
+            <div className="import-preview-error" role="alert">
+              <strong>{previewErrorTitle(preview.error)}</strong>
+              <div>{preview.error.message}</div>
+              {preview.error.source && <div>Source: <code>{preview.error.source}</code></div>}
+              {preview.error.importedFrom && <div>Imported from: <code>{preview.error.importedFrom}</code></div>}
+            </div>
+          ) : (
+            <pre className="import-preview-content">{JSON.stringify(preview.data, null, 2)}</pre>
+          )}
+        </div>
+      )}
+      {preview && preview.loading && <p className="import-preview-hint">Resolving imports...</p>}
 
       <div className="editor-tabs">
         <button
@@ -211,12 +276,12 @@ export function ConfigEditor({ path, data, onSave, onForceSave, onDelete, onProm
           <button
             className="btn-delete"
             onClick={() => onDelete(path)}
-            disabled={!canWrite}
+            disabled={!canWrite || !!newConfig}
             title={canWrite ? 'Delete configuration' : 'No write permission'}
           >
             Delete
           </button>
-          {canWrite && <PromoteButton path={path} onPromote={onPromote} />}
+          {canWrite && !newConfig && <PromoteButton path={path} onPromote={onPromote} />}
         </div>
         <div className="editor-footer-right">
           {hasChanges && canWrite && (
