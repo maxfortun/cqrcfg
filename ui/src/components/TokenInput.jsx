@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import './TokenInput.css';
 
 export function TokenInput({ token, onTokenChange }) {
   const [isEditing, setIsEditing] = useState(!token);

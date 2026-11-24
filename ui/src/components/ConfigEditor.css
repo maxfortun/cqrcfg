@@ -1,0 +1,321 @@
+/* Config Editor */
+.config-editor {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  max-width: 1100px;
+}
+
+.editor-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+
+.editor-header h2 {
+  margin: 0;
+  font-size: 1.25rem;
+  font-family: monospace;
+  word-break: break-all;
+}
+
+.editor-tabs {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+.editor-tabs button {
+  padding: 0.5rem 1rem;
+}
+
+.editor-tabs button.active {
+  background: var(--accent);
+  border-color: var(--accent);
+}
+
+.editor-content {
+  flex: 1;
+  overflow: auto;
+}
+
+/* Form Editor */
+.form-editor {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.form-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  padding: 0.75rem;
+  background: var(--bg-secondary);
+  border-radius: 4px;
+  position: relative;
+}
+
+.form-field label {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.875rem;
+}
+
+.field-key {
+  font-weight: 600;
+  font-family: monospace;
+}
+
+.field-type {
+  color: var(--text-secondary);
+  font-size: 0.75rem;
+}
+
+.form-field input,
+.form-field textarea,
+.form-field select {
+  padding: 0.5rem;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
+  font-family: monospace;
+  font-size: 0.875rem;
+}
+
+.form-field textarea {
+  resize: vertical;
+  min-height: 60px;
+}
+
+.remove-field {
+  position: absolute;
+  top: 0.5rem;
+  right: 0.5rem;
+  padding: 0.125rem 0.375rem;
+  font-size: 0.75rem;
+  background: transparent;
+  border: 1px solid var(--text-secondary);
+  color: var(--text-secondary);
+}
+
+.remove-field:hover {
+  background: var(--error);
+  border-color: var(--error);
+  color: white;
+}
+
+.add-field {
+  align-self: flex-start;
+}
+
+.empty-config {
+  color: var(--text-secondary);
+  text-align: center;
+  padding: 2rem;
+}
+
+/* JSON Editor */
+.json-editor {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.json-editor textarea {
+  flex: 1;
+  min-height: 400px;
+  padding: 1rem;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  font-family: monospace;
+  font-size: 0.875rem;
+  resize: vertical;
+}
+
+.json-editor textarea.has-error {
+  border-color: var(--error);
+}
+
+.json-error {
+  margin-top: 0.5rem;
+  padding: 0.5rem;
+  background: var(--error);
+  color: white;
+  border-radius: 4px;
+  font-size: 0.875rem;
+}
+
+/* Editor Footer */
+.editor-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--border);
+}
+
+.editor-footer-left {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.editor-footer-right {
+  display: flex;
+  gap: 0.5rem;
+}
+
+/* Read-only Badge */
+.readonly-badge {
+  padding: 0.25rem 0.5rem;
+  background: var(--warning);
+  color: #000;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+/* Disabled input styles */
+.form-field input:disabled,
+.form-field textarea:disabled,
+.form-field select:disabled,
+.json-editor textarea:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  background: var(--bg-primary);
+}
+
+/* Remote change / conflict banners */
+.remote-change-banner {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.625rem 1rem;
+  border-radius: 4px;
+  margin-bottom: 0.75rem;
+  font-size: 0.875rem;
+  gap: 0.75rem;
+}
+
+.remote-change-banner.conflict-banner {
+  background: var(--danger-bg, #f8d7da);
+  border: 1px solid var(--danger-border, #f5c6cb);
+  color: var(--danger-text, #721c24);
+}
+
+.remote-change-banner button {
+  padding: 0.25rem 0.75rem;
+  border-radius: 4px;
+  font-size: 0.8rem;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.remote-change-banner.conflict-banner button {
+  background: transparent;
+  border: 1px solid var(--danger-border, #f5c6cb);
+  color: var(--danger-text, #721c24);
+}
+
+.remote-change-banner .btn-force,
+.remote-change-banner.conflict-banner .btn-force {
+  background: var(--error);
+  border-color: var(--error);
+  color: white;
+}
+
+.conflict-actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+/* Import preview (read-only, resolved) */
+.import-preview {
+  border: 1px solid var(--border, #ccc);
+  border-radius: 4px;
+  background: var(--bg-secondary);
+  padding: 0.75rem;
+}
+
+.import-preview-actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.import-preview-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 0.5rem;
+}
+
+.import-preview-hint {
+  margin: 0 0 0.5rem;
+  font-size: 0.8rem;
+  opacity: 0.8;
+}
+
+.import-preview-content {
+  margin: 0;
+  overflow: auto;
+  font-family: monospace;
+  font-size: 0.85rem;
+  white-space: pre-wrap;
+}
+
+.import-preview-error {
+  padding: 0.625rem 1rem;
+  border-radius: 4px;
+  background: var(--danger-bg, #f8d7da);
+  border: 1px solid var(--danger-border, #f5c6cb);
+  color: var(--danger-text, #721c24);
+  font-size: 0.875rem;
+}
+
+/* Editor: unsaved marker and field validation */
+.editor-header {
+  gap: 0.75rem;
+}
+
+.editor-header h2 {
+  flex: 1;
+  min-width: 0;
+}
+
+.editor-actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.unsaved-badge {
+  color: var(--warning);
+  font-size: 0.75rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.field-error {
+  color: var(--error);
+  font-size: 0.8rem;
+}
+
+.form-field input.has-error,
+.form-field textarea.has-error {
+  border-color: var(--error);
+}
+
+.remote-change-banner.info-banner {
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border);
+  color: var(--text-primary);
+}

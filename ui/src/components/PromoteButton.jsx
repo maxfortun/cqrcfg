@@ -1,4 +1,6 @@
 import { useState } from 'react';
+import './PromoteButton.css';
+import './Modal.css';
 
 const PROMOTION_BRANCH = window.__CQRCFG_GIT_PROMOTION_BRANCH__ || '';
 

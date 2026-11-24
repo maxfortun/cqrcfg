@@ -1,0 +1,12 @@
+button.btn-promote,
+button.btn-promote-confirm {
+  background: var(--primary, var(--accent));
+  border-color: var(--primary, var(--accent));
+  color: #fff;
+}
+
+button.btn-promote:hover:not(:disabled),
+button.btn-promote-confirm:hover:not(:disabled) {
+  background: var(--primary-hover, var(--accent-hover));
+  border-color: var(--primary-hover, var(--accent-hover));
+}

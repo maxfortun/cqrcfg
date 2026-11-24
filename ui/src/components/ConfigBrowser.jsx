@@ -1,5 +1,24 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
+import './ConfigBrowser.css';
+import './Modal.css';
 import { api } from '../api';
+
+const naturalCompare = (a, b) =>
+  a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' });
+
+// Wrap the matched part of a name in <mark> so it stands out in the list
+function highlightMatch(text, query) {
+  if (!query) return text;
+  const index = text.toLowerCase().indexOf(query.toLowerCase());
+  if (index === -1) return text;
+  return (
+    <>
+      {text.slice(0, index)}
+      <mark>{text.slice(index, index + query.length)}</mark>
+      {text.slice(index + query.length)}
+    </>
+  );
+}
 
 function extractPathsFromTree(tree, basePath) {
   const paths = [];
@@ -42,6 +61,23 @@ export function ConfigBrowser({
   const [newKeyName, setNewKeyName] = useState('');
   const [goToPath, setGoToPath] = useState('');
 
+  // Instant, client-side filter over the entries currently listed
+  const [listFilter, setListFilter] = useState('');
+  const listFilterRef = useRef(null);
+
+  // "/" focuses the list filter, unless the user is already typing somewhere
+  useEffect(() => {
+    const onKeyDown = (e) => {
+      if (e.key !== '/' || e.ctrlKey || e.metaKey || e.altKey) return;
+      const tag = e.target.tagName;
+      if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || e.target.isContentEditable) return;
+      e.preventDefault();
+      listFilterRef.current?.focus();
+    };
+    document.addEventListener('keydown', onKeyDown);
+    return () => document.removeEventListener('keydown', onKeyDown);
+  }, []);
+
   // Unified filter state
   const [keySearch, setKeySearch] = useState('');
   const [jsonPathQuery, setJsonPathQuery] = useState('');
@@ -69,7 +105,7 @@ export function ConfigBrowser({
       }
     }
 
-    return Array.from(children).sort();
+    return Array.from(children).sort(naturalCompare);
   };
 
   const immediateChildren = getImmediateChildren();
@@ -85,6 +121,7 @@ export function ConfigBrowser({
   };
 
   const clearFilters = () => {
+    setListFilter('');
     setKeySearch('');
     setJsonPathQuery('');
     setPropFilters([{ key: '', value: '' }]);
@@ -158,6 +195,7 @@ export function ConfigBrowser({
   const handleItemClick = (path) => {
     const hasChildren = paths.some((p) => p !== path && p.startsWith(path + '/'));
     if (hasChildren) {
+      setListFilter('');
       onNavigateTo(path);
     } else {
       onSelectPath(path);
@@ -177,8 +215,54 @@ export function ConfigBrowser({
   const hasAnyFilterInput = keySearch.trim().length > 0 || hasActiveJsonPathInput || hasActivePropInput;
 
   // Determine which paths to display
-  const displayPaths = filterResults !== null ? filterResults : immediateChildren;
   const isShowingFilterResults = filterResults !== null;
+  const baseDisplayPaths = isShowingFilterResults ? filterResults : immediateChildren;
+  const listQuery = listFilter.trim();
+  const displayPaths = listQuery
+    ? baseDisplayPaths.filter((p) =>
+        (isShowingFilterResults ? p : getDisplayName(p)).toLowerCase().includes(listQuery.toLowerCase())
+      )
+    : baseDisplayPaths;
+
+  const activateItem = (path) => {
+    if (isShowingFilterResults) onSelectPath(path);
+    else handleItemClick(path);
+  };
+
+  const handleListFilterKeyDown = (e) => {
+    if (e.key === 'Escape') {
+      setListFilter('');
+      e.currentTarget.blur();
+    } else if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      document.querySelector('.path-list .path-item')?.focus();
+    } else if (e.key === 'Enter') {
+      e.preventDefault();
+      if (displayPaths.length === 1) activateItem(displayPaths[0]);
+    }
+  };
+
+  const handleItemKeyDown = (e, path) => {
+    const item = e.currentTarget;
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      item.nextElementSibling?.focus();
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      if (item.previousElementSibling) item.previousElementSibling.focus();
+      else listFilterRef.current?.focus();
+    } else if (e.key === 'Enter') {
+      e.preventDefault();
+      activateItem(path);
+    } else if (e.key === ' ') {
+      e.preventDefault();
+      onSelectPath(path);
+    } else if (e.key === 'Backspace' && !isShowingFilterResults && currentPath !== '/config') {
+      e.preventDefault();
+      onNavigateUp();
+      clearFilters();
+    }
+  };
 
   return (
     <div className="config-browser">
@@ -227,6 +311,21 @@ export function ConfigBrowser({
         </button>
       </form>
 
+      <div className="list-filter">
+        <input
+          ref={listFilterRef}
+          type="search"
+          className="search-input"
+          placeholder="Filter this list...  ( / )"
+          aria-label="Filter this list"
+          value={listFilter}
+          onChange={(e) => setListFilter(e.target.value)}
+          onKeyDown={handleListFilterKeyDown}
+        />
+      </div>
+
+      <details className="advanced-filters" open={isShowingFilterResults || hasAnyFilterInput || undefined}>
+      <summary>Advanced search</summary>
       <form className="filter-section" onSubmit={handleFilter}>
         <div className="filter-group">
           <input
@@ -292,6 +391,7 @@ export function ConfigBrowser({
           )}
         </div>
       </form>
+      </details>
 
       {filterError && <div className="filter-error">{filterError}</div>}
 
@@ -310,33 +410,42 @@ export function ConfigBrowser({
         >
           + New
         </button>
-        {isShowingFilterResults && (
-          <span className="search-count">{displayPaths.length} results</span>
-        )}
+        <span className="search-count">
+          {listQuery
+            ? `${displayPaths.length} of ${baseDisplayPaths.length}`
+            : isShowingFilterResults
+              ? `${displayPaths.length} results`
+              : `${displayPaths.length} items`}
+        </span>
       </div>
 
-      <ul className="path-list">
+      <ul className="path-list" role="listbox" aria-label="Configurations">
         {displayPaths.length === 0 && (
           <li className="empty-message">
-            {isShowingFilterResults ? 'No matching configurations found' : 'No configurations found'}
+            {listQuery || isShowingFilterResults ? 'No matching configurations found' : 'No configurations found'}
           </li>
         )}
         {displayPaths.map((path) => {
           const hasChildren = paths.some((p) => p !== path && p.startsWith(path + '/'));
           const isExact = paths.includes(path);
+          const label = isShowingFilterResults ? path : getDisplayName(path);
 
           return (
             <li
               key={path}
+              role="option"
+              aria-selected={selectedPath === path}
+              tabIndex={0}
+              title={path}
               className={`path-item ${selectedPath === path ? 'selected' : ''} ${hasChildren ? 'has-children' : ''}`}
-              onClick={() => isShowingFilterResults ? onSelectPath(path) : handleItemClick(path)}
+              onClick={() => activateItem(path)}
               onDoubleClick={() => handleItemDoubleClick(path)}
+              onKeyDown={(e) => handleItemKeyDown(e, path)}
             >
               <span className="path-icon">{hasChildren && !isShowingFilterResults ? '/' : ''}</span>
-              <span className="path-name">
-                {isShowingFilterResults ? path : getDisplayName(path)}
-              </span>
-              {isExact && !isShowingFilterResults && <span className="path-badge">value</span>}
+              <span className="path-name">{highlightMatch(label, listQuery)}</span>
+              {/* Only worth a badge when the path is both a folder and a value */}
+              {isExact && hasChildren && !isShowingFilterResults && <span className="path-badge">value</span>}
             </li>
           );
         })}
