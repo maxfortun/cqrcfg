@@ -1,3 +1,5 @@
+import { templateCandidates } from './templatePaths.js';
+
 const API_BASE = window.__CQRCFG_API_URL__ || './api';
 const AUTH_HEADER = window.__CQRCFG_AUTH_HEADER__ || '';
 const AUTH_PATTERN = window.__CQRCFG_AUTH_PATTERN__ || '';
@@ -31,7 +33,13 @@ async function handleResponse(response) {
   }
   if (!response.ok) {
     const error = await response.json().catch(() => ({ message: response.statusText }));
-    throw new Error(error.message || `HTTP ${response.status}`);
+    const err = new Error(error.message || `HTTP ${response.status}`);
+    err.status = response.status;
+    // Import resolution errors carry extra detail (code, source, importedFrom)
+    err.code = error.code;
+    err.source = error.source;
+    err.importedFrom = error.importedFrom;
+    throw err;
   }
   return response;
 }
@@ -59,7 +67,9 @@ export const api = {
   },
 
   async getConfig(path, token) {
-    const url = `${API_BASE}${path}`;
+    // raw=true: load the stored config with ___import tags unresolved, so the
+    // editor shows (and saves) exactly what is stored
+    const url = `${API_BASE}${path}?raw=true`;
     const response = await fetch(url, {
       headers: getAuthHeaders(token),
       credentials: isProxyAuthMode ? 'include' : 'same-origin',
@@ -68,6 +78,34 @@ export const api = {
     const data = await res.json();
     const revision = response.headers.get('cqrcfg-revision') || null;
     return { data, revision };
+  },
+
+  // Read the saved config with all ___import tags resolved (same as a normal
+  // API read). Used by the editor's read-only Preview.
+  async getResolvedConfig(path, token) {
+    const url = `${API_BASE}${path}`;
+    const response = await fetch(url, {
+      headers: getAuthHeaders(token),
+      credentials: isProxyAuthMode ? 'include' : 'same-origin',
+    });
+    const res = await handleResponse(response);
+    return res.json();
+  },
+
+  // Find the nearest ___template for a new config (own path first, then each
+  // ancestor). Read raw so ___import tags in the template are kept as-is.
+  // 404 = not here, 403 = no access at this level (skip); other errors propagate.
+  async findTemplate(newPath, token) {
+    for (const candidate of templateCandidates(newPath)) {
+      try {
+        const { data } = await api.getConfig(candidate, token);
+        return { data, path: candidate };
+      } catch (err) {
+        if (err.status === 404 || err.status === 403) continue;
+        throw err;
+      }
+    }
+    return null;
   },
 
   async putConfig(path, data, token, revision) {
@@ -105,7 +143,7 @@ export const api = {
   },
 
   async queryJsonPath(path, jsonPathExpr, token) {
-    const url = `${API_BASE}${path}?jsonPath=${encodeURIComponent(jsonPathExpr)}`;
+    const url = `${API_BASE}${path}?jsonPath=${encodeURIComponent(jsonPathExpr)}&raw=true`;
     const response = await fetch(url, {
       headers: getAuthHeaders(token),
       credentials: isProxyAuthMode ? 'include' : 'same-origin',
@@ -116,6 +154,7 @@ export const api = {
 
   async queryKeyValueFilter(path, filters, token) {
     const params = new URLSearchParams(filters);
+    params.set('raw', 'true');
     const url = `${API_BASE}${path}?${params.toString()}`;
     const response = await fetch(url, {
       headers: getAuthHeaders(token),

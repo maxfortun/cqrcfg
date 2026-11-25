@@ -385,6 +385,12 @@ In proxy auth mode:
 
 The cache uses LRU (Least Recently Used) eviction with both entry count and memory limits to prevent memory exhaustion. Cache is automatically invalidated on writes.
 
+### Import Settings
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `IMPORT_MAX_DEPTH` | `10` | Maximum nesting depth when resolving `___import` tags |
+
 ### Logging
 
 The service uses [Pino](https://getpino.io) for structured JSON logging. By default, logs are written to stdout in JSON format. The logging framework can be redirected to other logging libraries without code changes using environment variables.
@@ -608,6 +614,54 @@ curl -H "Authorization: Bearer $TOKEN" "http://localhost:3000/config/app1?featur
   "message": "Configuration at path /config/app1/db does not match filter criteria"
 }
 ```
+
+### Config Imports (`___import`)
+
+A config can pull in keys from another config with an `___import` tag. Imports are resolved **on read only**: the stored config keeps the raw tag, so writes and edits always see the raw document.
+
+```json
+{
+  "name": "main",
+  "___import": {
+    "source": "shared/db",
+    "priority": "keep",
+    "filter": "$.pool"
+  }
+}
+```
+
+| Field | Required | Description |
+|-------|----------|-------------|
+| `source` | yes | Path of the config to import, relative to the config root (`shared/db`, `/shared/db` and `/config/shared/db` are equivalent). Reads the whole subtree at that path. |
+| `priority` | no | `keep` (default): existing keys in the importing config win. `overwrite`: imported values replace existing keys. |
+| `filter` | no | JSONPath selecting what to import. Each match contributes its last path segment as the key (e.g. `$.pool` imports `pool`; `$..host` imports every `host`). A filter that matches nothing imports nothing. With no filter the whole source is imported. |
+
+Imported keys are inserted at the level where the tag appears and the tag is removed from the output. Tags can appear at any level of a document and sources can themselves contain imports (up to `IMPORT_MAX_DEPTH` levels).
+
+**Merge rule:** when a key exists on both sides and both values are objects, they are merged recursively using the same priority. Any other conflict (scalars, arrays, differing types) is settled by `priority` - arrays are replaced, not concatenated.
+
+**Permissions:** the caller needs `read` permission on every imported source, not just the requested path.
+
+**Reading the raw config:** add `?raw=true` to a GET to receive the stored config with `___import` tags unresolved (this is what editors should load and save).
+
+**Errors:**
+
+| Status | `code` | Cause |
+|--------|--------|-------|
+| 422 | `SOURCE_NOT_FOUND` | Imported source does not exist |
+| 422 | `INVALID_FILTER` | `filter` is not a valid JSONPath |
+| 422 | `INVALID_IMPORT_TAG` | Missing/invalid `source` or invalid `priority` |
+| 422 | `CIRCULAR_IMPORT` | Imports form a cycle (message shows the chain) |
+| 422 | `IMPORT_DEPTH_EXCEEDED` | Nesting deeper than `IMPORT_MAX_DEPTH` |
+| 403 | `FORBIDDEN_SOURCE` | Caller cannot read an imported source |
+
+The response also includes `source` and `importedFrom`. When a config changes, change notifications are also sent for every config that (transitively) imports it. `jsonPath` and key/value filter queries match against the stored documents, so they cannot match keys that only exist through imports.
+
+### Config Templates (`___template`, Web UI)
+
+When you create a new config in the Web UI, it is pre-filled from the nearest config named `___template`. The UI looks at `<new path>/___template` first, then at each parent path up to the root (`/config/___template`), and uses the first one it finds. The pre-filled content is a draft: edit it and click Save, and nothing is stored until you do. If no template exists, creation behaves as before (an empty config is created).
+
+Templates are ordinary configs, copied as stored (any `___import` tags are kept, not resolved). The API does not apply templates itself, and there is no placeholder substitution.
 
 ### List Config Paths
 

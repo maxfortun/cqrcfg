@@ -1,5 +1,5 @@
 import { authHook } from '../middleware/auth.js';
-import { authzHook } from '../middleware/authz.js';
+import { authzHook, hasPermission } from '../middleware/authz.js';
 import { normalizePathHook } from '../middleware/normalizePath.js';
 import {
   getSubtree,
@@ -16,6 +16,8 @@ import {
 import { ConflictError } from '../storage/interface.js';
 import { hasWildcard } from '../storage/interface.js';
 import { getStorage } from '../storage/index.js';
+import { resolveImports } from '../services/importResolver.js';
+import { ImportError } from '../utils/imports.js';
 
 function getAuthorOptions(request) {
   const storage = getStorage();
@@ -26,6 +28,30 @@ function getAuthorOptions(request) {
 
 function getExpectedRevision(request) {
   return request.query?.rev || undefined;
+}
+
+/**
+ * Resolve ___import tags in a tree unless raw=true was requested.
+ * Sends an error response and returns undefined if resolution fails.
+ */
+async function resolveForResponse(tree, request, reply, raw) {
+  if (raw) return tree;
+
+  try {
+    return await resolveImports(tree, { path: request.configPath, user: request.user });
+  } catch (err) {
+    if (!(err instanceof ImportError)) throw err;
+
+    const forbidden = err.code === 'FORBIDDEN_SOURCE';
+    reply.code(forbidden ? 403 : 422).send({
+      error: forbidden ? 'Forbidden' : 'Unprocessable Entity',
+      message: err.message,
+      code: err.code,
+      source: err.source,
+      importedFrom: err.importedFrom,
+    });
+    return undefined;
+  }
 }
 
 /**
@@ -66,17 +92,7 @@ async function checkAuthz(request, reply, requiredAction) {
 }
 
 function checkAuthzForPath(user, path, requiredAction) {
-  if (!user || !path) return false;
-
-  const permissions = user.permissions || [];
-
-  return permissions.some((perm) => {
-    if (perm.path !== path && !path.startsWith(perm.path + '/')) {
-      return false;
-    }
-    const actions = perm.allow || [];
-    return actions.includes(requiredAction);
-  });
+  return hasPermission(user, path, requiredAction);
 }
 
 export default async function configRoutes(fastify) {
@@ -115,7 +131,8 @@ export default async function configRoutes(fastify) {
       const authzResult = await checkAuthz(request, reply, 'read');
       if (authzResult === false) return;
 
-      const { jsonPath, rev, ...filters } = request.query || {};
+      const { jsonPath, rev, raw: rawParam, ...filters } = request.query || {};
+      const raw = rawParam === 'true' || rawParam === '1';
 
       // jsonPath is mutually exclusive with key-value filters
       if (jsonPath !== undefined) {
@@ -150,7 +167,7 @@ export default async function configRoutes(fastify) {
           });
         }
 
-        return tree;
+        return resolveForResponse(tree, request, reply, raw);
       }
 
       // Apply query parameter filters at storage layer if any
@@ -164,7 +181,7 @@ export default async function configRoutes(fastify) {
             message: `Configuration at path ${path} does not match filter criteria`,
           });
         }
-        return tree;
+        return resolveForResponse(tree, request, reply, raw);
       }
 
       // For non-filtered reads, try to get the single node first (includes revision)
@@ -181,7 +198,7 @@ export default async function configRoutes(fastify) {
         });
       }
 
-      return tree;
+      return resolveForResponse(tree, request, reply, raw);
     }
   }
 

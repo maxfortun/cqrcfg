@@ -1,5 +1,23 @@
 # Releases
 
+## v1.0.0-build.43 — 2026-11-24
+
+- Faster config finding (Web UI): live, case-insensitive filter over the current list with match highlighting and counts (`/` focuses it, arrow keys and Enter navigate), natural sort order, compact rows with truncated names, and the server-side key/JSONPath/property filters collapsed under "Advanced search"
+- Safer editing (Web UI): form fields keep their type (typing `123` into a string field no longer saves a number), number and JSON fields validate inline and block Save, unsaved changes are guarded when switching, creating or closing (plus a reload warning, an unsaved marker and Ctrl/Cmd+S), and browser dialogs are replaced by modals and toasts
+- Visual polish (Web UI): environment badge beside the title, readable Connected status, header wraps on narrow screens, Promote is distinct from Delete, error and conflict banners now follow the light/dark theme, wider editor, and Preview is now a tab with Copy and Refresh
+- Add `--primary` and `--danger-*` theme variables (existing custom themes keep working through fallbacks)
+- Split the UI stylesheet into per-component files
+
+## v1.0.0-build.42 — 2026-11-19
+
+- Add config imports: `___import` tags (`source`, `priority`, `filter`) are resolved when a config is read via the API, with nested imports, circular import detection, per-source permission checks and importer change notifications
+- Add `?raw=true` read option to return the stored config with `___import` tags unresolved
+- Add `IMPORT_MAX_DEPTH` setting
+- UI now loads configs with `?raw=true` (editor, JSONPath and key/value filters) so `___import` tags are shown and saved as stored rather than as resolved content
+- Add config templates (Web UI): a new config is pre-filled from the nearest `___template` at its path or any ancestor, editable before saving
+- Add a Preview button to the config editor showing the saved config with all imports resolved (read-only), with clear messages for circular import, missing source and no-access errors
+- Add `IMPORT_EXAMPLES.md` with import usage examples
+
 ## v1.0.0-build.41 — 2026-08-05
 
 - Add configurable nav bar colors via `UI_NAV_BG_COLOR` and `UI_NAV_TEXT_COLOR` environment variables (defaults: seagreen/white)

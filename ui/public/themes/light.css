@@ -10,5 +10,10 @@
   --success: #2e7d32;
   --warning: #ed6c02;
   --error: #d32f2f;
+  --primary: #1565c0;
+  --primary-hover: #0d47a1;
+  --danger-bg: #f8d7da;
+  --danger-border: #f5c6cb;
+  --danger-text: #721c24;
   --border: #d0d0d0;
 }

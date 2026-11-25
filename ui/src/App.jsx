@@ -4,6 +4,7 @@ import { ConfigBrowser } from './components/ConfigBrowser';
 import { ConfigEditor } from './components/ConfigEditor';
 import { TokenInput } from './components/TokenInput';
 import { ThemeToggle } from './components/ThemeToggle';
+import { ConfirmDialog, Toast } from './components/Modal';
 import { api, isProxyAuthMode, ConflictError } from './api';
 
 // Runtime config
@@ -56,10 +57,51 @@ function App() {
   const [paths, setPaths] = useState([]);
   const [selectedPath, setSelectedPath] = useState(null);
   const [configData, setConfigData] = useState(null);
+  const [newConfig, setNewConfig] = useState(null); // { templatePath } while an unsaved, template-filled config is open
   const [revision, setRevision] = useState(null);
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(false);
   const [remoteChange, setRemoteChange] = useState(null);
+  const [dirty, setDirty] = useState(false); // editor has unsaved changes
+  const [dialog, setDialog] = useState(null); // confirm dialog being shown
+  const [toast, setToast] = useState(null); // { message, kind }
+
+  // Auto-dismiss toasts
+  useEffect(() => {
+    if (!toast) return;
+    const timer = setTimeout(() => setToast(null), 4000);
+    return () => clearTimeout(timer);
+  }, [toast]);
+
+  // Warn before the tab is closed or reloaded with unsaved changes
+  useEffect(() => {
+    if (!dirty) return;
+    const onBeforeUnload = (e) => {
+      e.preventDefault();
+      e.returnValue = '';
+    };
+    window.addEventListener('beforeunload', onBeforeUnload);
+    return () => window.removeEventListener('beforeunload', onBeforeUnload);
+  }, [dirty]);
+
+  // Run an action that would discard the open editor's changes, asking first if there are any
+  const guardUnsaved = (action) => {
+    if (!dirty) {
+      action();
+      return;
+    }
+    setDialog({
+      title: 'Discard unsaved changes?',
+      message: 'You have unsaved changes to this configuration. They will be lost if you continue.',
+      confirmLabel: 'Discard changes',
+      danger: true,
+      onConfirm: () => {
+        setDialog(null);
+        setDirty(false);
+        action();
+      },
+    });
+  };
 
   // Proxy auth claims (fetched from /whoami endpoint)
   const [proxyClaims, setProxyClaims] = useState(null);
@@ -177,6 +219,7 @@ function App() {
     setLoading(true);
     setError(null);
     setRemoteChange(null);
+    setNewConfig(null);
 
     try {
       const result = await api.getConfig(path, token);
@@ -204,6 +247,7 @@ function App() {
       setRemoteChange(null);
       await loadConfig(path);
       await loadPaths(currentPath);
+      setToast({ message: `Saved ${path}`, kind: 'success' });
     } catch (err) {
       if (err instanceof ConflictError) {
         setError('Save failed: this configuration was modified by another user. Reload to see the latest version, or force save to overwrite.');
@@ -247,10 +291,21 @@ function App() {
     }
   };
 
-  const deleteConfig = async (path) => {
+  const deleteConfig = (path) => {
     if (!token) return;
-    if (!confirm(`Delete configuration at ${path}?`)) return;
+    setDialog({
+      title: 'Delete configuration',
+      message: `Delete the configuration at ${path}? This cannot be undone.`,
+      confirmLabel: 'Delete',
+      danger: true,
+      onConfirm: () => {
+        setDialog(null);
+        performDelete(path);
+      },
+    });
+  };
 
+  const performDelete = async (path) => {
     setLoading(true);
     setError(null);
 
@@ -258,9 +313,12 @@ function App() {
       await api.deleteConfig(path, token);
       setSelectedPath(null);
       setConfigData(null);
+      setNewConfig(null);
       setRevision(null);
       setRemoteChange(null);
+      setDirty(false);
       await loadPaths(currentPath);
+      setToast({ message: `Deleted ${path}`, kind: 'success' });
     } catch (err) {
       setError(err.message);
     } finally {
@@ -276,12 +334,14 @@ function App() {
     try {
       const result = await api.promoteConfig(path, token);
       setError(null);
-      alert(`Successfully promoted ${path} to branch "${result.targetBranch}"`);
+      setToast({ message: `Promoted ${path} to branch "${result.targetBranch}"`, kind: 'success' });
     } catch (err) {
       setError(err.message);
       throw err;
     }
   };
+
+  const previewConfig = (path) => api.getResolvedConfig(path, token);
 
   const createConfig = async (path, data) => {
     if (!token) return;
@@ -290,6 +350,16 @@ function App() {
     setError(null);
 
     try {
+      const template = await api.findTemplate(path, token);
+      if (template) {
+        // Open as an unsaved draft; nothing is stored until the user saves
+        setConfigData(template.data);
+        setRevision(null);
+        setRemoteChange(null);
+        setSelectedPath(path);
+        setNewConfig({ templatePath: template.path });
+        return;
+      }
       await api.putConfig(path, data, token, null);
       await loadPaths(currentPath);
       await loadConfig(path);
@@ -323,8 +393,10 @@ function App() {
   return (
     <div className="app">
       <header className="app-header" style={{ background: navBgColor, color: navTextColor }}>
-        <h1>Config Manager</h1>
-        {envName && <span className="env-badge">{envName}</span>}
+        <div className="header-title">
+          <h1>Config Manager</h1>
+          {envName && <span className="env-badge">{envName}</span>}
+        </div>
         <div className="header-controls">
           <ThemeToggle />
           {userInfo && (
@@ -358,8 +430,8 @@ function App() {
             selectedPath={selectedPath}
             onNavigateUp={navigateUp}
             onNavigateTo={navigateToPath}
-            onSelectPath={loadConfig}
-            onCreateNew={createConfig}
+            onSelectPath={(path) => guardUnsaved(() => loadConfig(path))}
+            onCreateNew={(path, data) => guardUnsaved(() => createConfig(path, data))}
             token={token}
             canWrite={canWriteCurrentPath}
           />
@@ -375,14 +447,18 @@ function App() {
               onDelete={deleteConfig}
               onPromote={promoteConfig}
               onReload={reloadConfig}
-              onClose={() => {
+              onPreview={previewConfig}
+              onDirtyChange={setDirty}
+              onClose={() => guardUnsaved(() => {
                 setSelectedPath(null);
                 setConfigData(null);
+                setNewConfig(null);
                 setRevision(null);
                 setRemoteChange(null);
-              }}
+              })}
               canWrite={canWriteSelectedPath}
               remoteChange={remoteChange}
+              newConfig={newConfig}
             />
           ) : (
             <div className="placeholder">
@@ -391,6 +467,19 @@ function App() {
           )}
         </section>
       </main>
+
+      {dialog && (
+        <ConfirmDialog
+          title={dialog.title}
+          message={dialog.message}
+          confirmLabel={dialog.confirmLabel}
+          danger={dialog.danger}
+          onConfirm={dialog.onConfirm}
+          onCancel={() => setDialog(null)}
+        />
+      )}
+
+      {toast && <Toast message={toast.message} kind={toast.kind} onDismiss={() => setToast(null)} />}
     </div>
   );
 }
